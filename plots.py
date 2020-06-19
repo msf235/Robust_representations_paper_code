@@ -1227,7 +1227,7 @@ def lyaps(seeds, train_params, epochs_plot, figname="lyaps"):
             else:
                 ICs_data = ICs
 
-            LEs, sem, trajs = lyap.getSpectrum(Wrec, brec, Win, x=0, k_LE=k_LE, max_iters=1000,
+            LEs, sem, trajs = lyap.getSpectrum(Wrec.T, brec, Win.T, x=0, k_LE=k_LE, max_iters=1000,
                                                max_ICs=10, ICs=ICs_data, tol=2e-3, verbose=True)
             LEs = np.sort(LEs)[::-1]
             # spectra, errors = utils.lyaps_through_training(w, epochs_chaos, ICs, k_LE, max_IC, num_iter,

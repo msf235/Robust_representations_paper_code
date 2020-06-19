@@ -620,7 +620,7 @@ def initialize_and_train(
         return dim_loss/m
 
     ## Find requested network model and put model on appropriate device
-    if Win == 'identity':
+    if Win in ('identity', 'diagonal_first_two'):
         Win_instance = input_scale*torch.eye(X_dim, N)
     elif Win in ('orth', 'orthogonal', 'orthog'):
         temp = torch.empty(X_dim, N)
