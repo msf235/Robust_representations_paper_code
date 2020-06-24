@@ -23,6 +23,7 @@ import lyap
 import model_loader_utils as loader
 import initialize_and_train
 import utils
+
 # from joblib import Parallel, delayed, Memory
 
 
@@ -58,16 +59,15 @@ def point_replace(a_string):
 def get_color(hidden, cmap=plt.cm.plasma):
     mag = torch.max(hidden) - torch.min(hidden)
     # hid_norm = (hidden - np.min(hidden)) / (mag - 1)
-    hid_norm = (hidden.float() - torch.min(hidden)) / mag
+    hid_norm = (hidden.float() - torch.min(hidden))/mag
 
     return cmap(hid_norm)
-
 
 def median_and_bound(samples, perc_bound, dist_type='gamma', loc=0., shift=0, reflect=False, show_fit=False):
     samples = np.array(samples)
 
     def do_reflect(x, center):
-        return -1 * (x - center) + center
+        return -1*(x - center) + center
 
     if dist_type == 'gamma':
         # gam = st.gamma
@@ -144,10 +144,10 @@ plt.rcParams['axes.titlesize'] = 8
 
 class_style = 'color'
 
-cols11 = np.array([90, 100, 170]) / 255
-cols12 = np.array([37, 50, 120]) / 255
-cols21 = np.array([250, 171, 62]) / 255
-cols22 = np.array([156, 110, 35]) / 255
+cols11 = np.array([90, 100, 170])/255
+cols12 = np.array([37, 50, 120])/255
+cols21 = np.array([250, 171, 62])/255
+cols22 = np.array([156, 110, 35])/255
 cmap_activation_pnts = mcolors.ListedColormap([cols11, cols21])
 cmap_activation_pnts_edge = mcolors.ListedColormap([cols12, cols22])
 
@@ -170,7 +170,6 @@ figsize_long = (1, 0.5)
 # figsize_smallest = (.4, 0.25)
 ax_pos = (0, 0, 1, 1)
 
-
 def make_fig(figsize=figsize, ax_pos=ax_pos):
     """
 
@@ -184,7 +183,6 @@ def make_fig(figsize=figsize, ax_pos=ax_pos):
     fig = plt.figure(figsize=figsize)
     ax = fig.add_axes(ax_pos)
     return fig, ax
-
 
 def out_fig(fig, name, train_params, subfolder='', show=False, save=True, axis_type=0, name_order=0, data=None):
     """
@@ -202,14 +200,14 @@ def out_fig(fig, name, train_params, subfolder='', show=False, save=True, axis_t
     # fig.tight_layout()
     # fig.axes[0].ticklabel_format(style='sci',scilimits=(-2,2),axis='both')
     # fig.tight_layout()
-    folder = 'figs/Win_{}/'.format(train_params['Win'])
-    os.makedirs('figs/', exist_ok=True)
+    folder = '../results/figs/Win_{}/'.format(train_params['Win'])
+    os.makedirs('../results/figs/', exist_ok=True)
     os.makedirs(folder, exist_ok=True)
-    os.makedirs(folder + 'snaps/', exist_ok=True)
-    os.makedirs(folder + 'snaps/no_border', exist_ok=True)
-    os.makedirs(folder + 'snaps/border', exist_ok=True)
-    os.makedirs(folder + 'snaps_3d/no_border', exist_ok=True)
-    os.makedirs(folder + 'snaps_3d/border', exist_ok=True)
+    # os.makedirs(folder + 'snaps/', exist_ok=True)
+    # os.makedirs(folder + 'snaps/no_border', exist_ok=True)
+    # os.makedirs(folder + 'snaps/border', exist_ok=True)
+    # os.makedirs(folder + 'snaps_3d/no_border', exist_ok=True)
+    # os.makedirs(folder + 'snaps_3d/border', exist_ok=True)
     g = train_params['g_radius']
     nonlinearity = train_params['hid_nonlin']
     loss = train_params['loss']
@@ -230,10 +228,11 @@ def out_fig(fig, name, train_params, subfolder='', show=False, save=True, axis_t
     elif axis_type == 2:
         ax.axis('off')
     if name_order == 0:
-        fig_name = point_replace(
-            folder + subfolder + '{}_g_{}_Xdim_{}_{}_{}'.format(name, g, X_dim, nonlinearity, loss))
+        fig_name = folder + subfolder + point_replace(
+            '{}_g_{}_Xdim_{}_{}_{}'.format(name, g, X_dim, nonlinearity, loss))
     else:
-        fig_name = point_replace(folder + subfolder + 'g_{}_Xdim_{}_{}'.format(g, X_dim, name, nonlinearity, loss))
+        fig_name = folder + subfolder + point_replace('g_{}_Xdim_{}_{}'.format(g, X_dim, name, nonlinearity, loss))
+    print(fig_name)
     if save:
         os.makedirs(folder + subfolder, exist_ok=True)
         fig_file = fig_name + '.' + ext
@@ -495,8 +494,8 @@ def activity_visualization(train_params):
         xM = np.max(hid_pcs_plot[:, 0])
         ym = np.min(hid_pcs_plot[:, 1])
         yM = np.max(hid_pcs_plot[:, 1])
-        xc = (xm + xM) / 2
-        yc = (ym + yM) / 2
+        xc = (xm + xM)/2
+        yc = (ym + yM)/2
         hid_pcs_plot[:, 0] = hid_pcs_plot[:, 0] - xc
         hid_pcs_plot[:, 1] = hid_pcs_plot[:, 1] - yc
         if class_style == 'shape':
@@ -522,20 +521,20 @@ def activity_visualization(train_params):
         if dim == 2:
             x_factor = .4
             if max_extent_arg:
-                ax.set_xlim([xm - x_factor * max_extent, xM + x_factor * max_extent])
-                ax.set_ylim([xm - .1 * max_extent, xM + .1 * max_extent])
+                ax.set_xlim([xm - x_factor*max_extent, xM + x_factor*max_extent])
+                ax.set_ylim([xm - .1*max_extent, xM + .1*max_extent])
             else:
-                ax.set_xlim([ym - x_factor * max_extent, yM + x_factor * max_extent])
-                ax.set_ylim([ym - .1 * max_extent, yM + .1 * max_extent])
+                ax.set_xlim([ym - x_factor*max_extent, yM + x_factor*max_extent])
+                ax.set_ylim([ym - .1*max_extent, yM + .1*max_extent])
         else:
             if max_extent_arg:
-                ax.set_xlim([xm - .1 * max_extent, xM + .1 * max_extent])
-                ax.set_ylim([xm - .1 * max_extent, xM + .1 * max_extent])
-                ax.set_zlim([xm - .1 * max_extent, xM + .1 * max_extent])
+                ax.set_xlim([xm - .1*max_extent, xM + .1*max_extent])
+                ax.set_ylim([xm - .1*max_extent, xM + .1*max_extent])
+                ax.set_zlim([xm - .1*max_extent, xM + .1*max_extent])
             else:
-                ax.set_xlim([ym - .1 * max_extent, yM + .1 * max_extent])
-                ax.set_ylim([ym - .1 * max_extent, yM + .1 * max_extent])
-                ax.set_zlim([ym - .1 * max_extent, yM + .1 * max_extent])
+                ax.set_xlim([ym - .1*max_extent, yM + .1*max_extent])
+                ax.set_ylim([ym - .1*max_extent, yM + .1*max_extent])
+                ax.set_zlim([ym - .1*max_extent, yM + .1*max_extent])
             # ax.set_xlim([-10, 10])
             # ax.set_ylim([-10, 10])
             # ax.set_zlim([-10, 10])
@@ -598,7 +597,6 @@ def activity_visualization(train_params):
     # anim.save(fname + ".mp4")
     # anim.save("something.gif")
     # plt.show()
-
 
 def snapshots_through_time(train_params):
     # a = classification_dep.ClassificationAnalysis(architecture='noisy_recurrent')
@@ -678,8 +676,8 @@ def snapshots_through_time(train_params):
         xM = np.max(hid_pcs_plot[:, 0])
         ym = np.min(hid_pcs_plot[:, 1])
         yM = np.max(hid_pcs_plot[:, 1])
-        xc = (xm + xM) / 2
-        yc = (ym + yM) / 2
+        xc = (xm + xM)/2
+        yc = (ym + yM)/2
         hid_pcs_plot[:, 0] = hid_pcs_plot[:, 0] - xc
         hid_pcs_plot[:, 1] = hid_pcs_plot[:, 1] - yc
         if class_style == 'shape':
@@ -699,20 +697,20 @@ def snapshots_through_time(train_params):
         if dim == 2:
             x_factor = .4
             if max_extent_arg:
-                ax.set_xlim([xm - x_factor * max_extent, xM + x_factor * max_extent])
-                ax.set_ylim([xm - .1 * max_extent, xM + .1 * max_extent])
+                ax.set_xlim([xm - x_factor*max_extent, xM + x_factor*max_extent])
+                ax.set_ylim([xm - .1*max_extent, xM + .1*max_extent])
             else:
-                ax.set_xlim([ym - x_factor * max_extent, yM + x_factor * max_extent])
-                ax.set_ylim([ym - .1 * max_extent, yM + .1 * max_extent])
+                ax.set_xlim([ym - x_factor*max_extent, yM + x_factor*max_extent])
+                ax.set_ylim([ym - .1*max_extent, yM + .1*max_extent])
         else:
             if max_extent_arg:
-                ax.set_xlim([xm - .1 * max_extent, xM + .1 * max_extent])
-                ax.set_ylim([xm - .1 * max_extent, xM + .1 * max_extent])
-                ax.set_zlim([xm - .1 * max_extent, xM + .1 * max_extent])
+                ax.set_xlim([xm - .1*max_extent, xM + .1*max_extent])
+                ax.set_ylim([xm - .1*max_extent, xM + .1*max_extent])
+                ax.set_zlim([xm - .1*max_extent, xM + .1*max_extent])
             else:
-                ax.set_xlim([ym - .1 * max_extent, yM + .1 * max_extent])
-                ax.set_ylim([ym - .1 * max_extent, yM + .1 * max_extent])
-                ax.set_zlim([ym - .1 * max_extent, yM + .1 * max_extent])
+                ax.set_xlim([ym - .1*max_extent, yM + .1*max_extent])
+                ax.set_ylim([ym - .1*max_extent, yM + .1*max_extent])
+                ax.set_zlim([ym - .1*max_extent, yM + .1*max_extent])
 
         if dim == 3:
             if border:
@@ -772,7 +770,6 @@ def acc_and_loss_over_training(train_params, seeds, hue_dictionary=None, hue_tar
         epoch_plot_None = True
     else:
         epoch_plot_None = False
-
 
     # @memory.cache()
     def memoized_core(train_params, seeds, hue_dictionary, hue_target, epoch_list, epoch_plot):
@@ -870,7 +867,7 @@ def acc_and_loss_over_training(train_params, seeds, hue_dictionary=None, hue_tar
                 epochs, saves = loader.get_epochs_and_saves(run_dir)
                 frac_epochs = utils.saves_to_partial_epochs(epochs, saves)
                 if epoch_list_None:
-                    epoch_list = [frac_epochs] * num_hues
+                    epoch_list = [frac_epochs]*num_hues
                 # checkpoints = loader.get_check_nums(run_dir)
                 accs = []
                 with torch.no_grad():
@@ -933,12 +930,11 @@ def acc_and_loss_over_training(train_params, seeds, hue_dictionary=None, hue_tar
     out_fig(fig, figname, train_params, subfolder=train_params['network'] + '/acc_and_loss_over_training/',
             data=loss_and_acc_table)
 
-
 def cluster_holdout_test_acc_stat_fun(h, y, clust_identity, classifier_type='logistic_regression', num_repeats=5,
                                       train_ratio=0.8, seed=11):
     np.random.seed(seed)
     num_clusts = np.max(clust_identity) + 1
-    num_clusts_train = int(round(num_clusts * train_ratio))
+    num_clusts_train = int(round(num_clusts*train_ratio))
     # hid_epoch_count = h.shape[0]
     # num_time_pnts = h.shape[2]
     num_samples = h.shape[0]
@@ -957,9 +953,9 @@ def cluster_holdout_test_acc_stat_fun(h, y, clust_identity, classifier_type='log
         y_test = y[test_idx[perm_inv]]
         hid_test = h[test_idx[perm_inv]]
         if classifier_type == 'svm':
-            classifier = svm.LinearSVC(random_state=3 * i0 + 1)
+            classifier = svm.LinearSVC(random_state=3*i0 + 1)
         else:
-            classifier = linear_model.LogisticRegression(random_state=3 * i0 + 1, solver='lbfgs')
+            classifier = linear_model.LogisticRegression(random_state=3*i0 + 1, solver='lbfgs')
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             classifier.fit(hid_train, y_train)
@@ -967,7 +963,6 @@ def cluster_holdout_test_acc_stat_fun(h, y, clust_identity, classifier_type='log
         test_accs[i0] = classifier.score(hid_test, y_test)
 
     return train_accs, test_accs
-
 
 def clust_holdout_over_layers(seeds, gs, train_params, dim_curve_style='before_after',
                               figname="clust_holdout_over_layers"):
@@ -1078,7 +1073,6 @@ def clust_holdout_over_layers(seeds, gs, train_params, dim_curve_style='before_a
 
     plt.close('all')
 
-
 def dim_over_layers(seeds, gs, train_params, dim_curve_style='before_after', figname="dim_over_layers", T=0):
     """
     Figures that require instantiation of a single model to generate.
@@ -1158,7 +1152,6 @@ def dim_over_layers(seeds, gs, train_params, dim_curve_style='before_after', fig
 
     plt.close('all')
 
-
 def lyaps(seeds, train_params, epochs_plot, figname="lyaps"):
     """
     Figures that require instantiation of a single model to generate.
@@ -1216,7 +1209,7 @@ def lyaps(seeds, train_params, epochs_plot, figname="lyaps"):
             LEs = np.sort(LEs)[::-1]
             # spectra, errors = utils.lyaps_through_training(w, epochs_chaos, ICs, k_LE, max_IC, num_iter,
             #                                               tol=2e-3)
-            chaoticity = np.sum(LEs[:3] / np.arange(1, len(LEs[:3]) + 1))
+            chaoticity = np.sum(LEs[:3]/np.arange(1, len(LEs[:3]) + 1))
             d = [{'seed': seed, 'epoch': epoch, 'lyap': LEs[k], 'lyap_num': k, 'sem': sem,
                   'chaoticity': chaoticity} for k in range(len(LEs))]
             # d = {'seed': seed, 'g': g, 'epoch': epoch, 'lyap': LEs, 'sem': sem,
@@ -1242,7 +1235,6 @@ def lyaps(seeds, train_params, epochs_plot, figname="lyaps"):
             show=False, save=True, axis_type=0, data=lyap_table)
     #
     # plt.close('all')
-
 
 if __name__ == '__main__':
     train_params = dict(N=200,

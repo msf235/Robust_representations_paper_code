@@ -41,11 +41,13 @@ low_d_input_strongly_chaotic_params['num_epochs'] = 80
 # seeds = range(30)
 # The seeds for the instantiations of each network to train (to generate error bars). Train len(seeds) networks with
 # the same parameters
-seeds = range(5)
-# seeds = [0]
+# seeds = range(5)
+seeds = [0]
 
 # # %% Figure 1b (top)
 # plots.lyaps([0], high_d_input_edge_of_chaos_params, [0, 5, 15, 35, 40], figname="lyaps")
+high_d_input_edge_of_chaos_params['num_epochs'] = 1
+plots.lyaps([0], high_d_input_edge_of_chaos_params, [0, 1], figname="lyaps")
 #
 # # %% Figure 1b (bottom)
 # plots.lyaps([0], high_d_input_strongly_chaotic_params, [0, 5, 15, 35, 40], figname="lyaps")
