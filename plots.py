@@ -1,5 +1,7 @@
 import copy
 import pickle as pkl
+from pathlib import Path
+
 from scipy import stats as st
 import torch
 from sklearn import svm
@@ -156,25 +158,6 @@ ext = 'pdf'
 # ext = 'png'
 create_svg = False
 
-Win = 'orthog'
-folder = 'figs_test/' + ext + '/Win_{}/'.format(Win)
-
-os.makedirs('figs/', exist_ok=True)
-os.makedirs(folder, exist_ok=True)
-os.makedirs(folder + 'snaps/', exist_ok=True)
-os.makedirs(folder + 'snaps/no_border', exist_ok=True)
-os.makedirs(folder + 'snaps/border', exist_ok=True)
-os.makedirs(folder + 'snaps_3d/no_border', exist_ok=True)
-os.makedirs(folder + 'snaps_3d/border', exist_ok=True)
-
-folder_svg = 'figs/svg/Win_{}/'.format(Win)
-os.makedirs(folder_svg, exist_ok=True)
-os.makedirs(folder_svg + 'snaps/', exist_ok=True)
-os.makedirs(folder_svg + 'snaps/no_border', exist_ok=True)
-os.makedirs(folder_svg + 'snaps/border', exist_ok=True)
-os.makedirs(folder_svg + 'snaps_3d/no_border', exist_ok=True)
-os.makedirs(folder_svg + 'snaps_3d/border', exist_ok=True)
-
 # figsize = (2, 1.6)
 figsize = (1.5, 1.2)
 figsize_small = (1, 0.8)
@@ -219,13 +202,21 @@ def out_fig(fig, name, train_params, subfolder='', show=False, save=True, axis_t
     # fig.tight_layout()
     # fig.axes[0].ticklabel_format(style='sci',scilimits=(-2,2),axis='both')
     # fig.tight_layout()
+    folder = 'figs/Win_{}/'.format(train_params['Win'])
+    os.makedirs('figs/', exist_ok=True)
+    os.makedirs(folder, exist_ok=True)
+    os.makedirs(folder + 'snaps/', exist_ok=True)
+    os.makedirs(folder + 'snaps/no_border', exist_ok=True)
+    os.makedirs(folder + 'snaps/border', exist_ok=True)
+    os.makedirs(folder + 'snaps_3d/no_border', exist_ok=True)
+    os.makedirs(folder + 'snaps_3d/border', exist_ok=True)
     g = train_params['g_radius']
     nonlinearity = train_params['hid_nonlin']
     loss = train_params['loss']
     X_dim = train_params['X_dim']
     ax = fig.axes[0]
-    ax.set_xlabel('')
-    ax.set_ylabel('')
+    # ax.set_xlabel('')
+    # ax.set_ylabel('')
     ax.set_rasterized(rasterized)
     if axis_type == 1:
         ax.tick_params(
@@ -241,23 +232,13 @@ def out_fig(fig, name, train_params, subfolder='', show=False, save=True, axis_t
     if name_order == 0:
         fig_name = point_replace(
             folder + subfolder + '{}_g_{}_Xdim_{}_{}_{}'.format(name, g, X_dim, nonlinearity, loss))
-        fig_name_svg = point_replace(
-            folder_svg + subfolder + '{}_g_{}_Xdim_{}'.format(name, g, X_dim, nonlinearity, loss))
     else:
         fig_name = point_replace(folder + subfolder + 'g_{}_Xdim_{}_{}'.format(g, X_dim, name, nonlinearity, loss))
-        fig_name_svg = point_replace(
-            folder_svg + subfolder + 'g_{}_Xdim_{}_{}'.format(g, X_dim, name, nonlinearity, loss))
     if save:
         os.makedirs(folder + subfolder, exist_ok=True)
         fig_file = fig_name + '.' + ext
-        fig_file_svg = fig_name_svg + '.svg'
         print(f"Saving figure to {fig_file}")
         fig.savefig(fig_file, dpi=dpi, transparent=True, bbox_inches='tight')
-        if create_svg:
-            try:
-                subprocess.run(["pdf2svg", fig_file, fig_file_svg])
-            except FileNotFoundError:
-                print("No svg created")
 
     if show:
         fig.tight_layout()
@@ -792,13 +773,16 @@ def acc_and_loss_over_training(train_params, seeds, hue_dictionary=None, hue_tar
     else:
         epoch_plot_None = False
 
+
     # @memory.cache()
     def memoized_core(train_params, seeds, hue_dictionary, hue_target, epoch_list, epoch_plot):
         train_params_loc = copy.copy(train_params)
+        spe = train_params_loc['num_train_samples_per_epoch']
         pretrain = 'pretrain_params' in train_params_loc.keys() and train_params_loc['pretrain_params'] is not None
         NUM_SAMPLES = 100
         # device = 'cuda'
         device = 'cpu'
+        spe = train_params_loc['num_train_samples_per_epoch']
         FEEDFORWARD = train_params_loc['network'] == 'feedforward'
         if pretrain:
             num_epochs_pretrain = train_params_loc['pretrain_params']['num_epochs']
@@ -826,7 +810,7 @@ def acc_and_loss_over_training(train_params, seeds, hue_dictionary=None, hue_tar
             hue_dictionary_None = True
             hue_keys = []
             hue_pt_keys = []  # pretrain keys
-            loss_and_acc_table = pd.DataFrame(columns=['seed', 'epoch', 'accuracy'])
+            loss_and_acc_table = pd.DataFrame(columns=['seed', 'num_training_samples', 'accuracy'])
             num_hues = 1
         else:
             hue_dictionary_None = False
@@ -837,7 +821,7 @@ def acc_and_loss_over_training(train_params, seeds, hue_dictionary=None, hue_tar
             else:
                 hue_keys = list(hue_dictionary.keys())
                 hue_pt_keys = list()
-            loss_and_acc_table = pd.DataFrame(columns=['seed', 'epoch', 'accuracy', hue_target_str])
+            loss_and_acc_table = pd.DataFrame(columns=['seed', 'num_training_samples', 'accuracy', hue_target_str])
             if hue_target_idx == 0:
                 num_hues = len(hue_dictionary[hue_target[hue_target_idx]])
             elif hue_target_idx == 1:
@@ -891,20 +875,21 @@ def acc_and_loss_over_training(train_params, seeds, hue_dictionary=None, hue_tar
                 accs = []
                 with torch.no_grad():
                     # for k, epoch in enumerate(epoch_list[hue_idx]):
-                    for epoch in range(0, num_epochs_pretrain):
-                        # for save in saves[epoch]:
-                        for save in [0]:
-                            print(epoch, save)
-                            loader.load_model_from_epoch_and_dir(model, run_dir, epoch, save)
-                            print(model.Wrec.detach()[:4, :4])
-                            out = model(X_pretrain).detach()
-                            if not FEEDFORWARD:
-                                out = out[:, -1]
-                            out_cat = torch.argmax(out, dim=1)
-                            acc = torch.mean((out_cat == Y_pretrain).type(torch.float)).item()
-                            print(acc)
-                            accs.append(acc)
-                    for epoch in range(start_epoch_train, num_epochs_total + 1):
+                    # Todo: set up to work with pretrain
+                    # for epoch in range(0, num_epochs_pretrain):
+                    #     # for save in saves[epoch]:
+                    #     for save in [0]:
+                    #         print(epoch, save)
+                    #         loader.load_model_from_epoch_and_dir(model, run_dir, epoch, save)
+                    #         print(model.Wrec.detach()[:4, :4])
+                    #         out = model(X_pretrain).detach()
+                    #         if not FEEDFORWARD:
+                    #             out = out[:, -1]
+                    #         out_cat = torch.argmax(out, dim=1)
+                    #         acc = torch.mean((out_cat == Y_pretrain).type(torch.float)).item()
+                    #         print(acc)
+                    #         accs.append(acc)
+                    for epoch in epoch_list:
                         # for save in saves[epoch]:
                         for save in [0]:
                             print(epoch, save)
@@ -922,10 +907,10 @@ def acc_and_loss_over_training(train_params, seeds, hue_dictionary=None, hue_tar
                             hue_target_val = train_params_loc[hue_target[hue_target_idx]]
                         else:
                             hue_target_val = train_params_loc['pretrain_params'][hue_target[hue_target_idx]]
-                        d = {'seed': seed, 'epoch': epoch_plot, 'accuracy': accs,
+                        d = {'seed': seed, 'num_training_samples': np.array(epoch_plot)*spe, 'accuracy': accs,
                              hue_target_str: hue_target_val}
                     else:
-                        d = {'seed': seed, 'epoch': epoch_plot, 'accuracy': accs}
+                        d = {'seed': seed, 'num_training_samples': np.array(epoch_plot)*spe, 'accuracy': accs}
 
                     df = pd.DataFrame(d)
                     loss_and_acc_table = loss_and_acc_table.append(df)
@@ -941,13 +926,12 @@ def acc_and_loss_over_training(train_params, seeds, hue_dictionary=None, hue_tar
 
     fig, ax = utils.make_fig(figsize)
     # sns.lineplot(ax=ax, x='epoch', y='accuracy', data=loss_and_acc_table, hue=hue_target_str)
-    g = sns.lineplot(ax=ax, x='epoch', y='accuracy', data=loss_and_acc_table, hue=hue_target_str,
+    g = sns.lineplot(ax=ax, x='num_training_samples', y='accuracy', data=loss_and_acc_table, hue=hue_target_str,
                      estimator=est_acc, ci=ci_acc)
     # if g.legend_ is not None:
     #     g.legend_.remove()
     out_fig(fig, figname, train_params, subfolder=train_params['network'] + '/acc_and_loss_over_training/',
             data=loss_and_acc_table)
-    print
 
 
 def cluster_holdout_test_acc_stat_fun(h, y, clust_identity, classifier_type='logistic_regression', num_repeats=5,
@@ -1209,7 +1193,7 @@ def lyaps(seeds, train_params, epochs_plot, figname="lyaps"):
         # class_datasets = params['datasets']
         # num_train_samples = len(class_datasets['train'])
         # class_datasets['train'].max_samples = num_pnts_dim_red
-        torch.manual_seed(params['model_seed'])
+        torch.manual_seed(train_params_loc['model_seed'])
         # X, Y = class_datasets['train'][:]
 
         for epoch in epochs_plot:
@@ -1227,7 +1211,7 @@ def lyaps(seeds, train_params, epochs_plot, figname="lyaps"):
             else:
                 ICs_data = ICs
 
-            LEs, sem, trajs = lyap.getSpectrum(Wrec.T, brec, Win.T, x=0, k_LE=k_LE, max_iters=1000,
+            LEs, sem, trajs = lyap.getSpectrum(Wrec, brec, Win, x=0, k_LE=k_LE, max_iters=1000,
                                                max_ICs=10, ICs=ICs_data, tol=2e-3, verbose=True)
             LEs = np.sort(LEs)[::-1]
             # spectra, errors = utils.lyaps_through_training(w, epochs_chaos, ICs, k_LE, max_IC, num_iter,

@@ -254,34 +254,38 @@ class RNN(nn.Module):
         else:
             self.bout = nn.Parameter(output_bias.clone(), requires_grad=False)
 
+        self.Wrec_T = self.Wrec.T
+        self.Win_T = self.Win.T
+        self.Wout_T = self.Wout.T
+
         self.output_over_recurrent_time = output_over_recurrent_time
 
     def forward(self, inputs: Tensor):
         hid = self.hidden_unit_init
         if self.output_over_recurrent_time:
             # out = [hid]
-            out = torch.zeros(inputs.shape[0], inputs.shape[1], self.Wout.shape[-1])
+            out = torch.zeros(inputs.shape[0], inputs.shape[1], self.Wout_T.shape[-1])
             for i0 in range(inputs.shape[1]):
-                preactivation = hid@self.Wrec + inputs[:, i0]@self.Win + self.brec
+                preactivation = hid@self.Wrec_T + inputs[:, i0]@self.Win_T + self.brec
                 hid = self.nonlinearity(preactivation)
-                # out.append(hid@self.Wout + self.bout)
-                out[:, i0] = hid@self.Wout + self.bout
+                # out.append(hid@self.Wout_T + self.bout)
+                out[:, i0] = hid@self.Wout_T + self.bout
             return out
         else:
             for i0 in range(inputs.shape[1]):
-                preactivation = hid@self.Wrec + inputs[:, i0]@self.Win + self.brec
+                preactivation = hid@self.Wrec_T + inputs[:, i0]@self.Win_T + self.brec
                 hid = self.nonlinearity(preactivation)
-            out = hid@self.Wout + self.bout
+            out = hid@self.Wout_T + self.bout
             return out
 
     def get_pre_activations(self, inputs: Tensor):
         hid = self.hidden_unit_init
         preactivations = []
         for i0 in range(inputs.shape[1]):
-            preactivation = hid@self.Wrec + inputs[:, i0]@self.Win + self.brec
+            preactivation = hid@self.Wrec + inputs[:, i0]@self.Win_T + self.brec
             hid = self.nonlinearity(preactivation)
             preactivations.append(preactivation.detach())
-        out = hid@self.Wout + self.bout
+        out = hid@self.Wout_T + self.bout
         preactivations.append(out.detach())
         return preactivations
 
@@ -289,10 +293,10 @@ class RNN(nn.Module):
         hid = self.hidden_unit_init
         postactivations = []
         for i0 in range(inputs.shape[1]):
-            preactivation = hid@self.Wrec + inputs[:, i0]@self.Win + self.brec
+            preactivation = hid@self.Wrec_T + inputs[:, i0]@self.Win_T + self.brec
             hid = self.nonlinearity(preactivation)
             postactivations.append(hid.detach())
-        out = hid@self.Wout + self.bout
+        out = hid@self.Wout_T + self.bout
         postactivations.append(out.detach())
         return postactivations
 
@@ -300,11 +304,11 @@ class RNN(nn.Module):
         hid = self.hidden_unit_init
         activations = []
         for i0 in range(inputs.shape[1]):
-            preactivation = hid@self.Wrec + inputs[:, i0]@self.Win + self.brec
+            preactivation = hid@self.Wrec_T + inputs[:, i0]@self.Win_T + self.brec
             hid = self.nonlinearity(preactivation)
             activations.append(preactivation.detach())
             activations.append(hid.detach())
-        out = hid@self.Wout + self.bout
+        out = hid@self.Wout_T + self.bout
         activations.append(out.detach())
         return activations
 
@@ -312,55 +316,55 @@ class StaticInputRNN(RNN):
 
     def forward(self, inputs: Tensor, num_recurrent_steps):
         hid = self.hidden_unit_init
-        preactivation = hid@self.Wrec + inputs@self.Win + self.brec
+        preactivation = hid@self.Wrec_T + inputs@self.Win_T + self.brec
         hid = self.nonlinearity(preactivation)
         for i0 in range(num_recurrent_steps - 1):
-            preactivation = hid@self.Wrec + self.brec
+            preactivation = hid@self.Wrec_T + self.brec
             hid = self.nonlinearity(preactivation)
-        out = hid@self.Wout + self.bout
+        out = hid@self.Wout_T + self.bout
         return out
 
     def get_pre_activations(self, inputs: Tensor, num_recurrent_steps):
         hid = self.hidden_unit_init
         preactivations = []
-        preactivation = hid@self.Wrec + inputs@self.Win + self.brec
+        preactivation = hid@self.Wrec_T + inputs@self.Win_T + self.brec
         hid = self.nonlinearity(preactivation)
         preactivations.append(preactivation.detach())
         for i0 in range(num_recurrent_steps - 1):
-            preactivation = hid@self.Wrec + self.brec
+            preactivation = hid@self.Wrec_T + self.brec
             hid = self.nonlinearity(preactivation)
             preactivations.append(preactivation.detach())
-        out = hid@self.Wout + self.bout
+        out = hid@self.Wout_T + self.bout
         preactivations.append(out.detach())
         return preactivations
 
     def get_post_activation(self, inputs: Tensor, num_recurrent_steps):
         hid = self.hidden_unit_init
         postactivations = []
-        preactivation = hid@self.Wrec + inputs@self.Win + self.brec
+        preactivation = hid@self.Wrec_T + inputs@self.Win_T + self.brec
         hid = self.nonlinearity(preactivation)
         postactivations.append(hid.detach())
         for i0 in range(num_recurrent_steps - 1):
-            preactivation = hid@self.Wrec + self.brec
+            preactivation = hid@self.Wrec_T + self.brec
             hid = self.nonlinearity(preactivation)
             postactivations.append(hid.detach())
-        out = hid@self.Wout + self.bout
+        out = hid@self.Wout_T + self.bout
         postactivations.append(out.detach())
         return postactivations
 
     def get_activations(self, inputs: Tensor, num_recurrent_steps):
         hid = self.hidden_unit_init
         activations = []
-        preactivation = hid@self.Wrec + inputs@self.Win + self.brec
+        preactivation = hid@self.Wrec_T + inputs@self.Win_T + self.brec
         hid = self.nonlinearity(preactivation)
         activations.append(preactivation.detach())
         activations.append(hid.detach())
         for i0 in range(num_recurrent_steps - 1):
-            preactivation = hid@self.Wrec + self.brec
+            preactivation = hid@self.Wrec_T + self.brec
             hid = self.nonlinearity(preactivation)
             activations.append(preactivation.detach())
             activations.append(hid.detach())
-        out = hid@self.Wout + self.bout
+        out = hid@self.Wout_T + self.bout
         activations.append(out.detach())
         return activations
 
@@ -427,13 +431,13 @@ class SompolinskyRNN(RNN):
             # out = [hid]
             out = torch.zeros(inputs.shape[0], inputs.shape[1], self.Wout.shape[-1])
             for i0 in range(inputs.shape[1]):
-                hid = hid + self.dt*(self.nonlinearity(hid)@self.Wrec + inputs[:, i0]@self.Win + self.brec)
-                out[:, i0] = hid@self.Wout + self.bout
+                hid = hid + self.dt*(self.nonlinearity(hid)@self.Wrec_T + inputs[:, i0]@self.Win_T + self.brec)
+                out[:, i0] = hid@self.Wout_T + self.bout
             return out
         else:
             for i0 in range(inputs.shape[1]):
-                hid = hid + self.dt*(self.nonlinearity(hid)@self.Wrec + inputs[:, i0]@self.Win + self.brec)
-            out = hid@self.Wout + self.bout
+                hid = hid + self.dt*(self.nonlinearity(hid)@self.Wrec_T + inputs[:, i0]@self.Win_T + self.brec)
+            out = hid@self.Wout_T + self.bout
             return out
 
     def get_currents(self, inputs: Tensor, detach: bool = True):
@@ -447,7 +451,7 @@ class SompolinskyRNN(RNN):
             hid = self.hidden_unit_init
             currents = []
             for i0 in range(inputs.shape[1]):
-                hid = hid + self.dt*(self.nonlinearity(hid)@self.Wrec + inputs[:, i0]@self.Win + self.brec)
+                hid = hid + self.dt*(self.nonlinearity(hid)@self.Wrec_T + inputs[:, i0]@self.Win_T + self.brec)
                 currents.append(hid)
             return currents
 
@@ -462,7 +466,7 @@ class SompolinskyRNN(RNN):
             hid = self.hidden_unit_init
             firing_rates = []
             for i0 in range(inputs.shape[1]):
-                hid = hid + self.dt*(self.nonlinearity(hid)@self.Wrec + inputs[:, i0]@self.Win + self.brec)
+                hid = hid + self.dt*(self.nonlinearity(hid)@self.Wrec_T + inputs[:, i0]@self.Win_T + self.brec)
                 firing_rates.append(self.nonlinearity(hid))
             return firing_rates
 

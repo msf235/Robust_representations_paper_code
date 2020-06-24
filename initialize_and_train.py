@@ -621,17 +621,18 @@ def initialize_and_train(
 
     ## Find requested network model and put model on appropriate device
     if Win in ('identity', 'diagonal_first_two'):
-        Win_instance = input_scale*torch.eye(X_dim, N)
+        Win_instance = input_scale*torch.eye(X_dim, N).T.clone()
+        # Win_instance = input_scale*torch.eye(N, X_dim)
     elif Win in ('orth', 'orthogonal', 'orthog'):
         temp = torch.empty(X_dim, N)
         temp = torch.nn.init.orthogonal_(temp)
         temp = temp/torch.mean(torch.abs(temp))
         temp = input_scale*temp/math.sqrt(X_dim)
-        Win_instance = temp
+        Win_instance = temp.T.clone()
     else:
         raise AttributeError("Win option not recognized.")
 
-    Wout_instance = torch.randn(N, num_classes)*(.3/math.sqrt(N))
+    Wout_instance = torch.randn(num_classes, N)*(.3/math.sqrt(N))
 
     brec = torch.zeros(N)
     bout = torch.zeros(num_classes)
@@ -930,16 +931,11 @@ def initialize_and_train(
 
     ## Determine if the training needs to be run again or if it can be loaded from disk
     dirs, ids, output_exists = mom.get_dirs_and_ids_for_run(arg_dict, TABLE_PATH, ['num_epochs'], maximize='num_epochs')
-    if rerun:
+    if len(dirs) == 0:
         run_id, run_dir = mom.make_dir_for_run(arg_dict, TABLE_PATH)
-        print("rerunning")
     else:
-        if len(dirs) > 0:  # A run exists with matching parameters
-            run_id = ids[0]
-            run_dir = dirs[0]
-            print(f"Parameters match existing previous run with id {run_id}. Loading previous run.")
-        else:  # No run exists with matching parameters
-            run_id, run_dir = mom.make_dir_for_run(arg_dict, TABLE_PATH)
+        run_id = ids[0]
+        run_dir = dirs[0]
     ## Now train the model (if necessary)
     saves_per_epoch_is_number = not hasattr(saves_per_epoch, '__len__')
     batches_per_epoch = len(trainloader)
@@ -990,7 +986,7 @@ def initialize_and_train(
     load_prev = pretrain or not rerun
     model_trainer.train_model(model, dataloaders, device[0], regularized_loss,
                               optimizer_instance, total_num_epochs, run_dir,
-                              load_prev,  # todo: fix this. if rerun == True, pretraining doesn't work.
+                              load_prev,
                               learning_scheduler=learning_scheduler_instance,
                               save_model_criterion=save_model_criterion)
     # stats_history = history_and_machinery['stats_history']
