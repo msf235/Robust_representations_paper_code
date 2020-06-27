@@ -1237,18 +1237,20 @@ def lyaps(seeds, train_params, epochs_plot, figname="lyaps"):
     # plt.close('all')
 
 if __name__ == '__main__':
+    Win = 'orthog'
     train_params = dict(N=200,
                         # num_epochs=40,
-                        num_epochs=10,
+                        num_epochs=80,
+                        # num_epochs=10,
                         # num_epochs=3,
                         num_train_samples_per_epoch=1250,
                         X_clusters=60,
-                        X_dim=200,
-                        # X_dim=2,
+                        # X_dim=200,
+                        X_dim=2,
                         num_classes=2,
                         # n_lag=11,
-                        # n_lag=10,
-                        n_lag=9,
+                        n_lag=10,
+                        # n_lag=9,
                         # n_lag=51,
                         # n_lag=5001,
                         # n_lag=4,
@@ -1256,7 +1258,7 @@ if __name__ == '__main__':
                         g_radius=5,
                         # g_radius=250,
                         clust_sig=.02,
-                        # input_scale=10.0,
+                        input_scale=10.0,
                         n_hold=1,
                         n_out=1,
                         # loss='mse',
@@ -1264,7 +1266,8 @@ if __name__ == '__main__':
                         # optimizer='sgd',
                         optimizer='rmsprop',
                         # optimizer='adam',
-                        # momentum=0.1,
+                        momentum=0,
+                        # momentum=0.9,
                         dt=.01,
                         # learning_rate=1e-3,
                         learning_rate=1e-4,
@@ -1286,9 +1289,9 @@ if __name__ == '__main__':
 
     train_params_lyap = copy.copy(train_params)
     train_params_lyap['num_epochs'] = 40
-    lyaps([0], train_params_lyap, [0, 40])
+    # lyaps([0], train_params_lyap, [0, 40])
     train_params_lyap['g_radius'] = 250
-    lyaps([0], train_params_lyap, [0, 40])
+    # lyaps([0], train_params_lyap, [0, 40])
 
     # train_params['samples_per_epoch'] = 800
     # batch_size = int(round(train_params['num_train_samples_per_epoch'] * (1 - train_params['perc_val'])))
@@ -1297,9 +1300,9 @@ if __name__ == '__main__':
     # dim_over_training([0,1], [10, 200], [20, 20*train_params['samples_per_epoch']], train_params)
 
     # activity_visualization(train_params)
-    # fn = "dim_over_layers"
-    # dim_over_layers(range(5), [5, 250], train_params, colors=chaos_colors, dim_curve_style='before_after',
-    #                 comparison='before_after', figname=fn)
+    fn = "dim_over_layers"
+    # dim_over_layers(range(5), [5, 250], train_params, dim_curve_style='before_after', figname=fn)
+    dim_over_layers([0], [5, 250], train_params, dim_curve_style='before_after', figname=fn)
     # clust_holdout_over_layers(list(range(5)), [5, 250], train_params, colors=chaos_colors,
     #                           dim_curve_style='before_after',
     #                           comparison='before_after', figname="clust_holdout")

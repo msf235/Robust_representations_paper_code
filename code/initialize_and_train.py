@@ -271,6 +271,7 @@ def initialize_and_train(
     loc = locals()
     args = inspect.getfullargspec(initialize_and_train)[0]
     arg_dict = {arg: loc[arg] for arg in args}
+    print("initialize_and_train called with parameters ", arg_dict)
     del arg_dict['rerun']
     del arg_dict['pretrain_params']
     del arg_dict['load_prev_model']
@@ -669,12 +670,13 @@ def initialize_and_train(
         model = models.FeedForward(layer_weights, biases, nonlinearities)
     else:
         raise AttributeError('Option for net_architecture not recognized.')
-    if torch.cuda.device_count() == 2:
-        device = [torch.device("cuda:0"), torch.device("cuda:1")]
-    elif torch.cuda.device_count() == 1:
-        device = [torch.device("cuda:0")]
-    else:
-        device = [torch.device("cpu")]
+    # if torch.cuda.device_count() == 2:
+    #     device = [torch.device("cuda:0"), torch.device("cuda:1")]
+    # elif torch.cuda.device_count() == 1:
+    #     device = [torch.device("cuda:0")]
+    # else:
+    #     device = [torch.device("cpu")]
+    device = [torch.device("cpu"), torch.device("cpu")]
 
     print("Using {}".format(device[0]))
     model = model.to(device[0])
