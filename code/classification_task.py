@@ -34,8 +34,8 @@ class InpData(Dataset):
     """"""
 
     def __init__(self, X, Y):
-        # self.X = torch.from_numpy(X).float()
-        self.X = X
+        self.X = torch.from_numpy(X).float()
+        # self.X = X
         self.Y = Y
         # self.Y = torch.from_numpy(Y[:, -num_loss_pnts:]).float()
 
@@ -50,7 +50,9 @@ class Gaussian_Spheres(Dataset):
     def __init__(self, centers, center_labels, final_time, max_samples=None, noise_sig=0.1, nonzero_time_points=None,
                  squeeze=False):
         self.centers = torch.from_numpy(centers).float()
+        # self.centers = centers
         self.center_labels = torch.from_numpy(center_labels).long()
+        # self.center_labels = center_labels
         self.max_samples = max_samples
         self.num_class_labels = len(np.unique(center_labels))
         self.final_time = final_time
@@ -62,13 +64,16 @@ class Gaussian_Spheres(Dataset):
         self.noise_sig = noise_sig
         self.squeeze = squeeze
         self.cluster_identity = None
+        self.seed_cnt = 0
         # self.noise = torch.autograd.Variable(torch.empty(X.shape[-1]))
 
     def __len__(self):
         return self.max_samples
 
     def __getitem__(self, idx):
-
+        torch.manual_seed(self.seed_cnt)
+        np.random.seed(self.seed_cnt)
+        self.seed_cnt = (self.seed_cnt + 1)%100000
         X = self.centers.clone()
         Y = self.center_labels.clone()
 
@@ -86,9 +91,9 @@ class Gaussian_Spheres(Dataset):
         # sequence = np.random.choice(self.centers.shape[0], num_draws, True)
 
         # This is a draw that tries to hit clusters as evenly as possible.
-        # m = int(round(num_draws / self.centers.shape[0]))
         m = np.mod(num_draws, self.centers.shape[0])
         sequence = np.mod(np.arange(num_draws), self.centers.shape[0])
+        # temp = np.mod(np.arange(num_draws), self.centers.shape[0])
         if m > 0:
             leftover = np.random.choice(self.centers.shape[0], m, False)
             sequence[-m:] = leftover
@@ -97,7 +102,7 @@ class Gaussian_Spheres(Dataset):
         X = X[sequence]
         Y = Y[sequence]
 
-        noise = self.noise_sig * torch.randn(num_draws, X.shape[-1])
+        noise = self.noise_sig * torch.randn(*X.shape)
         X = X + noise
         if not self.squeeze:
             X = X[:, None]
@@ -107,7 +112,7 @@ class Gaussian_Spheres(Dataset):
             mask = np.ones(X.shape[1], np.bool)
             mask[self.nonzero_time_points] = 0
             mask = np.nonzero(mask)[0]
-            X[:, mask, :] = 0.
+            X[:, mask, :] = 0
 
         self.cluster_identity = sequence
 
@@ -292,6 +297,7 @@ def delayed_mixed_gaussian(num_trials, perc_val, X_dim, Y_classes, X_clusters, n
     nonzero_time_points = torch.arange(n_hold)
 
     torch.manual_seed(assignment_and_noise_seed)
+    np.random.seed(assignment_and_noise_seed)
     if freeze_input:
         dataset = Gaussian_Spheres(centers, cluster_class_label, final_time_point, max_samples=num_trials,
                                    noise_sig=noise_sigma, nonzero_time_points=nonzero_time_points)

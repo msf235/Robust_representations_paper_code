@@ -263,12 +263,10 @@ class RNN(nn.Module):
     def forward(self, inputs: Tensor):
         hid = self.hidden_unit_init
         if self.output_over_recurrent_time:
-            # out = [hid]
             out = torch.zeros(inputs.shape[0], inputs.shape[1], self.Wout_T.shape[-1])
             for i0 in range(inputs.shape[1]):
                 preactivation = hid@self.Wrec_T + inputs[:, i0]@self.Win_T + self.brec
                 hid = self.nonlinearity(preactivation)
-                # out.append(hid@self.Wout_T + self.bout)
                 out[:, i0] = hid@self.Wout_T + self.bout
             return out
         else:

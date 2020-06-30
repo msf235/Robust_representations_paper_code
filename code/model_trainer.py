@@ -12,6 +12,7 @@ import utils
 
 DISABLE_CHECKPOINTS = False
 
+
 def save_checkpoint(state, is_best=True, filename: Union[str, Path] = 'output/checkpoint.pth.tar'):
     """
     Save checkpoint if a new best is achieved. This will always create the
@@ -41,107 +42,99 @@ def save_checkpoint(state, is_best=True, filename: Union[str, Path] = 'output/ch
     else:
         print("=> Validation Accuracy did not improve")
 
+
 class DefaultStatsTracker:
-    def __init__(self, batches_per_epoch, phase: str, accuracy: bool = True):
-        self.batches_per_epoch: int = batches_per_epoch
-        self.accuracy: bool = accuracy
-        self.running_avg_loss_tot: float = 0.
-        self.running_avg_loss_epoch: float = 0.
-        self.batch: int = 0
-        self.epoch: int = 0
-        self.running_accuracy_tot: float = 0.
-        self.running_accuracy_epoch: float = 0.
-        self.losses_all = []
-        self.epoch_losses = []
-        self.epoch_accuracies = []
-        if phase == 'train':
-            self.phase = 'Training'
-        elif phase == 'val':
-            self.phase = 'Validation'
-        else:
-            raise AttributeError("phase not recognized.")
+    def __init__(self, accuracy: bool = True):
+        self.batch_losses = {'train': [], 'val': []}
+        self.epoch_losses = {'train': [], 'val': []}
+        self.batch_accs = {'train': [], 'val': []}
+        self.epoch_accs = {'train': [], 'val': []}
+        self.accuracy = accuracy
 
     def __call__(self, stat_dict):
-        batch = stat_dict['batch']
-        epoch = stat_dict['epoch']
+        phase = stat_dict['current_phase']
         loss = stat_dict['loss']
-        self.losses_all.append(loss)
-        if batch == 0:
-            self.running_avg_loss_epoch = 0.
-            self.running_avg_acc_epoch = 0.
-
-        num_terms_tot = self.batches_per_epoch * epoch + (batch + 1)
-        num_terms_epoch = batch + 1
-        # print(n)
-        self.running_avg_loss_tot = (self.running_avg_loss_tot * ((num_terms_tot - 1) / num_terms_tot)
-                                     + stat_dict['loss'] / num_terms_tot)
-        self.running_avg_loss_epoch = (self.running_avg_loss_epoch * ((num_terms_epoch - 1) / num_terms_epoch)
-                                       + stat_dict['loss'] / num_terms_epoch)
-
-        # print(stat_dict['loss'])
-        # print(self.running_avg_loss_epoch)
+        self.batch_losses[phase].append(loss)
         if self.accuracy:
             if len(stat_dict['outputs'].shape) > 2:
-                out_class = torch.argmax(stat_dict['outputs'][:,-1].detach(), dim=1)
-                accuracy = torch.mean((out_class == stat_dict['targets'][:,-1]).double()).item()
-
-                self.running_accuracy_epoch = (self.running_accuracy_epoch * ((num_terms_epoch - 1) / num_terms_epoch)
-                                               + accuracy / num_terms_epoch)
+                out_class = torch.argmax(stat_dict['outputs'][:, -1].detach(), dim=1)
+                accuracy = torch.mean((out_class == stat_dict['targets'][:, -1]).double()).item()
             else:
                 out_class = torch.argmax(stat_dict['outputs'].detach(), dim=1)
                 accuracy = torch.mean((out_class == stat_dict['targets']).double()).item()
+            self.batch_accs[phase].append(accuracy)
 
-                self.running_accuracy_epoch = (self.running_accuracy_epoch * ((num_terms_epoch - 1) / num_terms_epoch)
-                                               + accuracy / num_terms_epoch)
-
-        if stat_dict['epoch_end']:  # We've reached the end of an epoch
-            self.epoch_losses.append(self.running_avg_loss_epoch)
-            self.epoch_accuracies.append(self.running_accuracy_epoch)
+        if stat_dict['epoch_end'] and stat_dict['epoch']>0:  # We've reached the end of an epoch
+            epoch_loss = torch.mean(torch.tensor(self.batch_losses[phase])).item()
+            self.epoch_losses[phase].append(epoch_loss)
+            epoch_acc = torch.mean(torch.tensor(self.batch_accs[phase])).item()
+            self.epoch_accs[phase].append(epoch_acc)
             # print()
-            print(f"Average {self.phase} loss over this epoch: {self.running_avg_loss_epoch}")
+            print(f"Average {phase} loss over this epoch: {epoch_loss}")
             if self.accuracy:
-                print(f"Average {self.phase} accuracy over this epoch: {self.running_accuracy_epoch}")
+                print(f"Average {phase} accuracy over this epoch: {epoch_acc}")
+            self.batch_losses[phase] = []
+            self.batch_accs[phase] = []
 
     def export_stats(self):
-        out_stats = dict(epoch_losses=self.epoch_losses, epoch_accuracies=self.epoch_accuracies)
+        out_stats = dict(epoch_losses=self.epoch_losses, epoch_accuracies=self.epoch_accs)
         return out_stats
 
-class DefaultLearningScheduler:
-    def __init__(self, scheduler):
-        self.scheduler = scheduler
-        self.running_avg_loss_epoch: float = 0.
-        self.batch: int = 0
-        self.epoch: int = 0
-        self.losses_all = []
-        self.epoch_losses = []
+
+# %% Learning rate schedulers.
+class LRSchedulerTemplate:
+    def __init__(self, optimizer, **kwargs):
+        pass
 
     def __call__(self, stats_dict, phase):
-        batch = stats_dict['batch']
-        loss = stats_dict['loss']
-        self.losses_all.append(loss)
-        if batch == 0:
-            self.running_avg_loss_epoch = 0.
+        pass
 
-        num_terms_epoch = batch + 1
-        self.running_avg_loss_epoch = (self.running_avg_loss_epoch * ((num_terms_epoch - 1) / num_terms_epoch)
-                                       + stats_dict['loss'] / num_terms_epoch)
+    def state_dict(self):
+        pass
 
-        if stats_dict['epoch_end'] and phase == 'train':  # We've reached the end of an epoch
-            self.epoch_losses.append(self.running_avg_loss_epoch)
-            if isinstance(self.scheduler, torch.optim.lr_scheduler._LRScheduler):
-                self.scheduler.step()
-            else:
-                self.scheduler.step(self.running_avg_loss_epoch)
+
+class StepLR(LRSchedulerTemplate):
+    def __init__(self, optimizer, **kwargs):
+        super().__init__(optimizer, **kwargs)
+        self.torch_lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, **kwargs)
+
+    def __call__(self, stats_dict, phase):
+        if phase == 'val' and stats_dict['epoch_end']:
+            self.torch_lr_scheduler.step()
+
+    def state_dict(self):
+        return self.torch_lr_scheduler.state_dict()
+
+
+class ReduceLROnPlateau(LRSchedulerTemplate):
+    def __init__(self, optimizer, **kwargs):
+        super().__init__(optimizer, **kwargs)
+        self.batch_losses: list = []
+        self.torch_lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, **kwargs)
+
+    def __call__(self, stats_dict):
+        if stats_dict['current_phase'] == 'val':
+            self.batch_losses.append(stats_dict['loss'])
+            if stats_dict['epoch_end'] and stats_dict['epoch'] > 0:
+                avg_loss = torch.mean(torch.tensor(self.batch_losses)).item()
+                self.torch_lr_scheduler.step(avg_loss)
+                self.batch_losses = []
+
+    def state_dict(self):
+        return self.torch_lr_scheduler.state_dict()
+
 
 def default_save_model_criterion(stat_dict):
     # return stat_dict['epoch_end'] or stat_dict['epoch'] == 0
     return stat_dict['epoch_end']
 
+
 def default_stopping_criterion(stat_dict):
     return False
 
+
 def train_model(model, dataloaders, device, loss_function, optimizer, stopping_epoch=5, out_dir=None, load_prev=True,
-                learning_scheduler=None, save_model_criterion=None, stopping_criterion=None, stats_trackers=None):
+                learning_scheduler=None, save_model_criterion=None, stopping_criterion=None, stats_tracker=None):
     """
 
     Parameters
@@ -169,7 +162,7 @@ def train_model(model, dataloaders, device, loss_function, optimizer, stopping_e
         epoch load_prev (epoch 0 means before training starts). If False, retrain model from epoch 0. If there are
         multiple saves per epoch, this only loads the save the corresponds with the end of an epoch (for instance,
         epoch_1_save_0.pt is the save at the end of epoch 0, so beginning of epoch 1).
-    stats_trackers : Union[None, Dict[Callable], str]
+    stats_tracker : Union[None, Callable, str]
         Object for tracking the statistics of the model over training.
     learning_scheduler : object
         An obect that takes in a dictionary as first argument and phase as second argument. It can, for instance,
@@ -195,7 +188,6 @@ def train_model(model, dataloaders, device, loss_function, optimizer, stopping_e
     """
     out_dir = Path(out_dir)
     dataset_sizes = {x: len(dataloaders[x].dataset) for x in dataloaders}
-    batches_per_epoch = {x: int(dataset_sizes[x] / dataloaders[x].batch_size) for x in ['train', 'val']}
     since = time.time()
 
     if isinstance(load_prev, bool):
@@ -231,12 +223,10 @@ def train_model(model, dataloaders, device, loss_function, optimizer, stopping_e
     if stopping_criterion is None:
         stopping_criterion = default_stopping_criterion
 
-    if stats_trackers is None:
-        stats_trackers = {x: DefaultStatsTracker(batches_per_epoch[x], x, accuracy=True) for x in ['train', 'val']}
-    # train_conv_check = cc.CheckConvergence(memory_length=patience_before_stopping,
-    #                                        min_length=patience_before_stopping,
-    #                                        tolerance=-.004)
-    stat_keys = ['loss', 'batch', 'epoch', 'epoch_end', 'outputs', 'labels']
+    if stats_tracker is None:
+        stats_tracker = DefaultStatsTracker(True)
+
+    stat_keys = ['loss', 'batch', 'epoch', 'epoch_end', 'outputs', 'labels', 'current_phase']
 
     stat_dict = {x: None for x in stat_keys}
     stat_dict['final_epoch'] = False
@@ -245,27 +235,14 @@ def train_model(model, dataloaders, device, loss_function, optimizer, stopping_e
 
     batch_sizes = {x: dataloaders[x].batch_size for x in ['train', 'val']}
 
-    def end_of_epoch(phase, inputs, batch_number) -> bool:
-        if dataset_sizes[phase] % batch_sizes[phase] == 0 or dataloaders[phase].drop_last == True:
-            if batch_number == batches_per_epoch[phase] - 1:
-                return True
-            else:
-                return False
-        else:
-            if inputs.shape[0] != batch_sizes[phase]:
-                return True
-            else:
-                return False
-
     def train(epoch):
         save_ctr = 0
         stat_dict['epoch'] = epoch
         phase = 'train'
+        stat_dict['current_phase'] = phase
         # datalen = len(dataloaders[phase])
         model.train()
         for batch_num, (inputs, targets) in enumerate(dataloaders[phase]):
-            # print(batch_num)
-            # print(batch_num, " out of ", datalen, " batches")
             inputs = inputs.to(device)
             targets = targets.to(device)
             optimizer.zero_grad()  # zero the parameter gradients
@@ -276,30 +253,29 @@ def train_model(model, dataloaders, device, loss_function, optimizer, stopping_e
                 loss_val = loss.item()
             except AttributeError:
                 loss_val = loss
+            # print(loss_val)
             stat_dict['loss'] = loss_val
             stat_dict['batch'] = batch_num
             stat_dict['outputs'] = outputs
             stat_dict['targets'] = targets
-            stat_dict['checkpoint'] = save_model_criterion(stat_dict)
+            is_checkpoint = save_model_criterion(stat_dict)
+            stat_dict['checkpoint'] = is_checkpoint
 
-            if stat_dict['checkpoint'] and out_dir is not None:
-                filename = out_dir/f'epoch_{epoch}_save_{save_ctr}.pt'
+            if is_checkpoint and out_dir is not None:
+                filename = out_dir / f'epoch_{epoch}_save_{save_ctr}.pt'
                 save_checkpoint({'model_state_dict': model.state_dict(),
                                  'optimizer_state_dict': optimizer.state_dict(),
-                                 'learning_scheduler_state_dict': learning_scheduler.scheduler.state_dict()},
+                                 'learning_scheduler_state_dict': learning_scheduler.state_dict()},
                                 filename=filename)
                 save_ctr += 1
 
-            learning_scheduler(stat_dict, phase)
-            stats_trackers[phase](stat_dict)
+            stats_tracker(stat_dict)
+            learning_scheduler(stat_dict)
 
             if loss_val > 0:
                 loss.backward()
                 optimizer.step()
-
             stat_dict['epoch_end'] = False
-            del loss
-            torch.cuda.empty_cache()
 
     def validate(epoch):
         print()
@@ -307,6 +283,7 @@ def train_model(model, dataloaders, device, loss_function, optimizer, stopping_e
         print('-' * 10)
         stat_dict['epoch'] = epoch
         phase = 'val'
+        stat_dict['current_phase'] = phase
         model.eval()
         with torch.no_grad():
             for batch_num, (inputs, targets) in enumerate(dataloaders[phase]):
@@ -317,27 +294,35 @@ def train_model(model, dataloaders, device, loss_function, optimizer, stopping_e
                 outputs = model(inputs)
                 loss = loss_function(outputs, targets)
                 loss_val = loss.item()
+                stat_dict['loss'] = loss_val
+                stat_dict['batch'] = batch_num
+                stat_dict['outputs'] = outputs
+                stat_dict['targets'] = targets
+                is_checkpoint = save_model_criterion(stat_dict)
+                stat_dict['checkpoint'] = is_checkpoint
 
-                learning_scheduler(stat_dict, phase)
-                stats_trackers[phase](stat_dict)
+                learning_scheduler(stat_dict)
+                stats_tracker(stat_dict)
+                stat_dict['epoch_end'] = False
 
     for epoch in range(starting_epoch, stopping_epoch):
         tic = time.time()
         print()
-        print(f'Epoch {epoch}/{stopping_epoch-1}')
+        print(f'Epoch {epoch}/{stopping_epoch - 1}')
         print('-' * 10)
         stat_dict['epoch_end'] = True
         train(epoch)
+        stat_dict['epoch_end'] = True
         validate(epoch)
         # Todo: save and stop criterion here, taking into account results of validate
         toc = time.time()
         print(f'Elapsed time this epoch: {round(toc - tic, 1)} seconds')
 
     if starting_epoch < stopping_epoch:
-        filename = out_dir/f'epoch_{stopping_epoch}_save_{0}.pt'  # End of the last epoch
+        filename = out_dir / f'epoch_{stopping_epoch}_save_{0}.pt'  # End of the last epoch
         save_checkpoint({'model_state_dict': model.state_dict(),
                          'optimizer_state_dict': optimizer.state_dict(),
-                         'learning_scheduler_state_dict': learning_scheduler.scheduler.state_dict()},
+                         'learning_scheduler_state_dict': learning_scheduler.state_dict()},
                         filename=filename)
 
         #
@@ -346,12 +331,4 @@ def train_model(model, dataloaders, device, loss_function, optimizer, stopping_e
             time_elapsed // 60, time_elapsed % 60))
     else:
         print('Training previously complete -- loading save from disk')
-    # if classify:
-    #     print('Final val Acc: {:4f}'.format(best_acc))
-    # export_dict = {x: stats_trackers[x].export_stats() for x in ['train', 'val']}
-    # training_log_and_machinery = dict(stats_history=export_dict, stats_trackers=stats_trackers,
-    #                                   learning_scheduler=learning_scheduler, optimizer=optimizer)
-
-    # return models_to_return, training_log_and_machinery
-    # return training_log_and_machinery
-    return None
+    return stats_tracker.export_stats()

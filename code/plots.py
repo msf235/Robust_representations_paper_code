@@ -1121,6 +1121,8 @@ def dim_over_layers(seeds, gs, train_params, dim_curve_style='before_after', fig
                 X0 = X[:, 0]
             else:
                 X0 = X
+            # X = torch.tensor(X).float()
+            # X0 = torch.tensor(X0).float()
 
             if dim_curve_style == 'before_after':
                 for epoch, epoch_label in zip([0, -1], ['before', 'after']):
@@ -1240,16 +1242,19 @@ if __name__ == '__main__':
     Win = 'orthog'
     train_params = dict(N=200,
                         # num_epochs=40,
-                        num_epochs=80,
+                        # num_epochs=80,
+                        num_epochs=150,
                         # num_epochs=10,
                         # num_epochs=3,
-                        num_train_samples_per_epoch=1250,
+                        # num_train_samples_per_epoch=1250,
+                        num_train_samples_per_epoch=800,
+                        # num_train_samples_per_epoch=640,
                         X_clusters=60,
                         # X_dim=200,
                         X_dim=2,
                         num_classes=2,
-                        # n_lag=11,
-                        n_lag=10,
+                        n_lag=11,
+                        # n_lag=10,
                         # n_lag=9,
                         # n_lag=51,
                         # n_lag=5001,
@@ -1258,7 +1263,7 @@ if __name__ == '__main__':
                         g_radius=5,
                         # g_radius=250,
                         clust_sig=.02,
-                        input_scale=10.0,
+                        input_scale=1,
                         n_hold=1,
                         n_out=1,
                         # loss='mse',
@@ -1269,11 +1274,13 @@ if __name__ == '__main__':
                         momentum=0,
                         # momentum=0.9,
                         dt=.01,
-                        # learning_rate=1e-3,
-                        learning_rate=1e-4,
+                        learning_rate=1e-3,
+                        # learning_rate=2e-3,
+                        # learning_rate=1e-4,
                         # learning_rate=1e-5,
                         batch_size=10,
                         freeze_input=False,
+                        # freeze_input=True,
                         network='vanilla_rnn',
                         # network='sompolinsky',
                         # network='feedforward',
@@ -1285,7 +1292,7 @@ if __name__ == '__main__':
                         # hid_nonlin='linear',
                         # saves_per_epoch=1,
                         model_seed=0,
-                        rerun=False)
+                        rerun=True)
 
     train_params_lyap = copy.copy(train_params)
     train_params_lyap['num_epochs'] = 40
@@ -1302,7 +1309,9 @@ if __name__ == '__main__':
     # activity_visualization(train_params)
     fn = "dim_over_layers"
     # dim_over_layers(range(5), [5, 250], train_params, dim_curve_style='before_after', figname=fn)
-    dim_over_layers([0], [5, 250], train_params, dim_curve_style='before_after', figname=fn)
+    # dim_over_layers([1], [20, 250], train_params, dim_curve_style='before_after', figname=fn)
+    # dim_over_layers(range(5), [250], train_params, dim_curve_style='before_after', figname=fn)
+    dim_over_layers([0,1], [250], train_params, dim_curve_style='before_after', figname=fn)
     # clust_holdout_over_layers(list(range(5)), [5, 250], train_params, colors=chaos_colors,
     #                           dim_curve_style='before_after',
     #                           comparison='before_after', figname="clust_holdout")

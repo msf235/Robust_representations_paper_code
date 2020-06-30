@@ -132,24 +132,26 @@ def write_output(output, params, table_params, output_dir, overwrite=False, data
         else:
             print("Data directory already exists. Not writing output.")
             return
-    if data_filetype == 'hdf5':
-        with h5py.File(output_dir, "w") as fid:
-            param_grp = fid.create_group("parameters")
-            param_table_grp = fid.create_group("table_parameters")
-            out_grp = fid.create_group("output")
-            for key in params:
-                if params[key] is not None:
-                    param_grp.create_dataset(key, data=params[key])
-            for key in table_params:
-                if table_params[key] is not None:
-                    param_table_grp.create_dataset(key, data=table_params[key])
-            for key in output:
-                if output[key] is not None:
-                    out_grp.create_dataset(key, data=output[key])
-    elif data_filetype == 'pickle':
+    if data_filetype == 'pickle':
         data = dict(parameters=params, table_parameters=table_params, output=output)
         with open(output_file, "wb") as fid:
             pkl.dump(data, fid, protocol=4)
+    # elif data_filetype == 'hdf5':
+    #     with h5py.File(output_dir, "w") as fid:
+    #         param_grp = fid.create_group("parameters")
+    #         param_table_grp = fid.create_group("table_parameters")
+    #         out_grp = fid.create_group("output")
+    #         for key in params:
+    #             if params[key] is not None:
+    #                 param_grp.create_dataset(key, data=params[key])
+    #         for key in table_params:
+    #             if table_params[key] is not None:
+    #                 param_table_grp.create_dataset(key, data=table_params[key])
+    #         for key in output:
+    #             if output[key] is not None:
+    #                 out_grp.create_dataset(key, data=output[key])
+    else:
+        raise AttributeError("data_filetype option not recognized.")
 
     print("Done. Data written.")
 
@@ -181,10 +183,10 @@ def save_model(table_params, table_path, model_output, params, compare_exclude=[
     run_id = update_output_table(table_params, table_path, compare_exclude, columns, overwrite_existing)
     table_path = Path(table_path)
     table_dir = table_path.parents[0]
-    if data_filetype == 'hdf5':
-        file_name = DATA_FILE_NAME+'.h5'
-    elif data_filetype == 'pickle':
+    if data_filetype == 'pickle':
         file_name = DATA_FILE_NAME+'.pkl'
+    # elif data_filetype == 'hdf5':
+    #     file_name = DATA_FILE_NAME+'.h5'
     else:
         raise ValueError('data_filetype option not recognized.')
     output_dir = table_dir / (RUN_NAME+'_'+str(run_id))
@@ -195,11 +197,11 @@ def save_model(table_params, table_path, model_output, params, compare_exclude=[
     return run_id, output_path
 
 # Todo: Build in support for nested dictionaries / groups
-def hdf5group_to_dictionary(h5grp):
-    d = {}
-    for key in h5grp:
-        d[key] = h5grp[key].value
-    return d
+# def hdf5group_to_dictionary(h5grp):
+#     d = {}
+#     for key in h5grp:
+#         d[key] = h5grp[key].value
+#     return d
 
 # %% Methods for checking for run existence and getting location
 
@@ -414,17 +416,17 @@ def load_from_id(run_id, table_path='output/param_table.csv', data_filetype='pic
     table_path = Path(table_path)
     table_dir = table_path.parents[0]
     filename_no_ext = Path(table_dir/(RUN_NAME+'_'+str(run_id)+'/'+DATA_FILE_NAME))
-    if data_filetype == "hdf5":
-        try:
-            hf = h5py.File(filename_no_ext.with_suffix('.h5'), 'r')
-        except OSError:
-            hf = h5py.File(filename_no_ext.with_suffix('.hdf5'), 'r')
-    elif data_filetype == "pickle":
+    if data_filetype == "pickle":
         try:
             with open(filename_no_ext.with_suffix('.pkl'), 'rb') as fid:
                 hf = pkl.load(fid)
         except FileNotFoundError:
             return -1, None
+    # elif data_filetype == "hdf5":
+    #     try:
+    #         hf = h5py.File(filename_no_ext.with_suffix('.h5'), 'r')
+    #     except OSError:
+    #         hf = h5py.File(filename_no_ext.with_suffix('.hdf5'), 'r')
     else:
         print("Error: data_filetype option not recognized.")
 
@@ -481,42 +483,3 @@ def load_data(compare_exclude, table_params, table_path='output/param_table.csv'
         # raise KeyError(str1 + str2)
     elif len(merge_ids) == 0:
         raise KeyError("Error: run matching parameters {} not found".format(table_params))
-
-# %% Untested
-
-# def _get_updated_table(output_dir='output'):
-#     basedir = get_base_dir()
-#     out_dir = basedir + '/' + output_dir
-#     run_ids = [name[-1] for name in os.listdir(out_dir) if os.path.isdir(out_dir + '/' + name)]
-#     run_names = [name[:-2] for name in os.listdir(out_dir) if os.path.isdir(out_dir + '/' + name)]
-#     table_dir = './' + out_dir + '/param_table.csv'
-#     param_df = pd.DataFrame()
-#     for it, run_id in enumerate(run_ids):
-#         name = run_names[it]
-#         with h5py.File(out_dir + '/' + name + '_' + run_id + '/data.hdf5', 'r') as hf:  # Todo: resolve hdf5 vs h5 ext
-#             tbl_params = hdf5group_to_dictionary(hf['table_parameters'])
-#         new_row = pd.DataFrame(tbl_params, index=[int(run_id)])
-#         if it == 0:
-#             param_df = new_row.copy()
-#             param_df['run_number'] = 0
-#         elif it > 0:
-#             temp1 = param_df.drop(['ic_seed', 'run_number', 'run_time'], axis=1)
-#             temp2 = new_row.drop(['ic_seed', 'run_time'], axis=1)
-#             run_number = pd.merge(temp1, temp2).shape[0]
-#             new_row['run_number'] = run_number
-#             param_df = param_df.append(new_row)
-#
-#     param_df.to_csv(table_dir)
-#
-# def delete_from_id(run_name, run_id, table_path='output/param_table.csv'):
-#     import shutil
-#
-#     # table_dir = output_dir + '/' + 'param_table.csv'
-#     table_dir = table_path.split('/')[0]
-#     data_dir = table_dir + '/' + run_name + '_' + str(run_id)
-#
-#     shutil.rmtree(data_dir)
-#
-#     full_df = pd.read_csv(table_dir, index_col=0)
-#     full_df = full_df.drop(run_id)
-#     full_df.to_csv(table_dir)
