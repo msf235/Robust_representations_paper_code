@@ -71,9 +71,9 @@ class Gaussian_Spheres(Dataset):
         return self.max_samples
 
     def __getitem__(self, idx):
-        torch.manual_seed(self.seed_cnt)
-        np.random.seed(self.seed_cnt)
-        self.seed_cnt = (self.seed_cnt + 1)%100000
+        # torch.manual_seed(self.seed_cnt)
+        # np.random.seed(self.seed_cnt)
+        # self.seed_cnt = (self.seed_cnt + 1)%100000
         X = self.centers.clone()
         Y = self.center_labels.clone()
 

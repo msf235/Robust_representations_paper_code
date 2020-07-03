@@ -248,365 +248,12 @@ def out_fig(fig, name, train_params, subfolder='', show=False, save=True, axis_t
         with open(folder + subfolder + 'data/g_{}_Xdim_{}_{}_data'.format(g, X_dim, name), 'wb') as fid:
             pkl.dump(data, fid, protocol=4)
 
-def activity_visualization(train_params):
-    # a = classification_dep.ClassificationAnalysis(architecture='noisy_recurrent')
-    # init_params = dict(architecture='recurrent')
-    g_str = '_' + str(train_params['g_radius'])
-    X_dim = train_params['X_dim']
-    FEEDFORWARD = train_params['network'] == 'feedforward'
-    SUBFOLDER = train_params['network'] + '/' + 'activity_visualization/' + train_params['hid_nonlin'] + '/'
-
-    num_pnts_dim_red = 800
-    # num_pnts_dim_red = 40000
-    num_plot = 600
-
-    accv = []
-    val_accv = []
-    lossvs = []
-    val_lossvs = []
-
-    train_params_loc = copy.deepcopy(train_params)
-
-    model, params, run_dir = initialize_and_train.initialize_and_train(**train_params_loc)
-
-    class_datasets = params['datasets']
-    class_datasets['train'].max_samples = num_pnts_dim_red
-    torch.manual_seed(train_params_loc['model_seed'])
-    X, Y = class_datasets['train'][:]
-
-    if FEEDFORWARD:
-        T = 10
-        y = Y
-        X0 = X
-        # loader.load_model_from_epoch_and_dir(model, run_dir, 0, 0)
-        # hid_0 = model.get_post_activations(X)[:-1]
-        # loader.load_model_from_epoch_and_dir(model, run_dir, -1, 0)
-        # hid = model.get_post_activations(X)[:-1]
-    else:
-        T = 30
-        X = utils.extend_input(X, T + 2)
-        X0 = X[:, 0]
-        y = Y[:, -1]
-        # loader.load_model_from_epoch_and_dir(model, run_dir, 0, 0)
-        # hid_0 = model.get_post_activations(X).transpose(0, 1)
-        # # out = model(X)[:, -1]
-        # hid_0 = [h for h in hid_0]
-        # # hid_0.append(out)
-        # loader.load_model_from_epoch_and_dir(model, run_dir, -1, 0)
-        # hid = model.get_post_activations(X).transpose(0, 1)
-        # # out = model(X)[:, -1]
-        # hid = [h for h in hid]
-        # # hid.append(out)
-    loader.load_model_from_epoch_and_dir(model, run_dir, 0, 0)
-    hid_0 = [X0]
-    hid_0 += model.get_post_activations(X)[:-1]
-    loader.load_model_from_epoch_and_dir(model, run_dir, -1, 0)
-    hid = [X0]
-    hid += model.get_post_activations(X)[:-1]
-
-    # loader.load_model_from_epoch_and_dir(model, run_dir, 0, 0)
-    # hid_0 = model.get_post_activations(X)
-    # loader.load_model_from_epoch_and_dir(model, run_dir, -1, 0)
-    # hid = model.get_post_activations(X)
-
-    # out = hid_bef_aft = na.model_loader_utils.get_activity(model, run_dir, X, [0, -1], [-1], return_as_Tensor=True)
-    # out_load = na.model_loader_utils.activity_loader(model, run_dir, X, 1)
-    # out = out_load[-1].transpose(0,1)
-    # o = out[:, 10, 0]
-
-    # %% Visualize
-    coloring = get_color(y, cmap_activation_pnts)[:num_plot]
-    edge_coloring = get_color(y, cmap_activation_pnts_edge)[:num_plot]
-    traj_size = (.6, .35)
-
-    # Input
-    if X_dim > 2:
-        X_pcs = utils.get_pcs_covariance(X0[:num_pnts_dim_red], [0, 1, 2])
-    else:
-        X_pcs = utils.get_pcs_covariance(X0[:num_pnts_dim_red], [0, 1])
-
-    fig, ax = make_fig()
-    if class_style == 'shape':
-        X_pcs_plot = X_pcs[:num_plot]
-        X_0 = X_pcs_plot[y[:num_plot] == 0]
-        X_1 = X_pcs_plot[y[:num_plot] == 1]
-        ax.scatter(X_0[:, 0], X_0[:, 1], c=coloring, edgecolors=edge_coloring, s=10, linewidths=.4, marker='o')
-        ax.scatter(X_1[:, 0], X_1[:, 1], c=coloring, edgecolors=edge_coloring, s=10, linewidths=.4, marker='^')
-    else:
-        ax.scatter(X_pcs[:num_plot, 0], X_pcs[:num_plot, 1], c=coloring,
-                   edgecolors=edge_coloring, s=10, linewidths=.4)
-
-    # out_params = train_params_loc
-    out_fig(fig, "input_pcs", train_params_loc, SUBFOLDER, axis_type=1)
-
-    # fig, ax = make_fig()
-    if X_dim > 2:
-        fig = plt.figure(figsize=figsize)
-        ax = fig.add_subplot(111, projection='3d')
-        if class_style == 'shape':
-            X_pcs_plot = X_pcs[:num_plot]
-            X_0 = X_pcs_plot[y[:num_plot] == 0]
-            X_1 = X_pcs_plot[y[:num_plot] == 1]
-            ax.scatter(X_0[:, 0], X_0[:, 1], X_0[:, 2], c=inp_col, edgecolors=inp_col_edge, s=10, linewidths=.4,
-                       marker='o')
-            ax.scatter(X_1[:, 0], X_1[:, 1], X_1[:, 2], c=inp_col, edgecolors=inp_col_edge, s=10, linewidths=.4,
-                       marker='^')
-        else:
-            ax.scatter(X_pcs[:num_plot, 0], X_pcs[:num_plot, 1], X_pcs[:num_plot, 2], c=coloring,
-                       edgecolors=edge_coloring, s=10, linewidths=.4)
-        ax.grid(False)
-        out_fig(fig, "input_pcs_3d", train_params_loc, SUBFOLDER, axis_type=0)
-
-    fig, ax = make_fig()
-    ax.scatter(X0[:num_plot, 0], X0[:num_plot, 1], c=coloring,
-               edgecolors=edge_coloring, s=10, linewidths=.4)
-    out_fig(fig, "input_first2", train_params_loc, SUBFOLDER, axis_type=1)
-    #
-    #
-    fig, ax = make_fig(figsize=figsize_long)
-    h0_temporal = [h[0, :10].numpy() for h in hid_0[1:]]
-    ax.plot(h0_temporal, linewidth=0.7)
-    if train_params['hid_nonlin'] == 'tanh':
-        ax.set_ylim([-1.1, 1.1])
-    ax.set_xlim([-0.02, T + .02])
-    ax.set_xlabel(r"$t$", labelpad=-5)
-    ax.set_ylabel(r"$h$", labelpad=-2)
-    ax.xaxis.set_major_locator(plt.MultipleLocator(30))
-    ax.xaxis.set_minor_locator(plt.MultipleLocator(5))
-    ax.yaxis.set_major_locator(plt.FixedLocator([-1, 1]))
-    ax.yaxis.set_minor_locator(plt.FixedLocator([-1, 0, 1]))
-    out_fig(fig, "hid_before_train", train_params_loc, SUBFOLDER)
-    #
-    # plt.style.use('ggplot')
-    # fig, ax = make_fig(figsize=traj_size)
-    # fig, ax = make_fig(figsize=figsize_small)
-    fig, ax = make_fig(figsize=figsize_long)
-    # plt.rc('axes', linewidth=2.3)
-    h_temporal = [h[0, :10].numpy() for h in hid[1:]]
-    # ax.plot(hid_0[0, :, :10], linewidth=0.7)
-    ax.plot(h_temporal, linewidth=0.7)
-    # ax.plot(hid[0, :, :10], linewidth=0.7)
-    if train_params['hid_nonlin'] == 'tanh':
-        ax.set_ylim([-1.1, 1.1])
-    ax.set_xlim([-0.02, 30.02])
-    ax.set_xlabel(r"$t$", labelpad=-5)
-    ax.set_ylabel(r"$h$", labelpad=-2)
-    ax.xaxis.set_major_locator(plt.MultipleLocator(30))
-    ax.xaxis.set_minor_locator(plt.MultipleLocator(5))
-    ax.yaxis.set_major_locator(plt.FixedLocator([-1, 1]))
-    ax.yaxis.set_minor_locator(plt.FixedLocator([-1, 0, 1]))
-    # ax.tick_params(axis='both', which='major', width=1, length=3)
-    # ax.tick_params(axis='both', which='minor', width=.7, length=2)
-    out_fig(fig, "hid_after_train", train_params_loc, SUBFOLDER)
-
-    # fig, ax = make_fig(figsize=traj_size)
-    # ax.plot(hid_0[0, :, :10])
-    # # ax.plot(hid_0[0, :, :])
-    # ax.set_ylim([-1.1, 1.1])
-    # ax.set_xlim([-0.02, 30.02])
-    # ax.set_xlabel(r"$t$", labelpad=-5)
-    # ax.set_ylabel(r"$h$", labelpad=-2)
-    # ax.xaxis.set_major_locator(plt.MultipleLocator(30))
-    # ax.xaxis.set_minor_locator(plt.MultipleLocator(5))
-    # out_fig(fig, "hid_before_train", g, X_dim)
-    #
-    # # plt.style.use('ggplot')
-    # fig, ax = make_fig(figsize=traj_size)
-    # # plt.rc('axes', linewidth=2.3)
-    # ax.plot(hid[0, :, :10])
-    # # ax.plot(hid[0, :, :])
-    # ax.set_ylim([-1.1, 1.1])
-    # ax.set_xlim([-0.02, 30.02])
-    # ax.set_xlabel(r"$t$", labelpad=-5)
-    # ax.set_ylabel(r"$h$", labelpad=-2)
-    # # ax.xaxis.set_major_locator(plt.MultipleLocator(5))
-    # ax.xaxis.set_major_locator(plt.MultipleLocator(30))
-    # # ax.xaxis.set_minor_locator(plt.MultipleLocator(2.5))
-    # # ax.xaxis.set_minor_locator(plt.MultipleLocator(1))
-    # ax.xaxis.set_minor_locator(plt.MultipleLocator(5))
-    # # ax.tick_params(axis='both', which='major', width=1, length=3)
-    # # ax.tick_params(axis='both', which='minor', width=.7, length=2)
-    # out_fig(fig, "hid_after_train", g, X_dim)
-
-    fig, ax = make_fig(figsize=traj_size)
-    # ax.hist(hid_0[:, 0, :].flatten())
-    ax.hist(hid_0[0].flatten())
-    out_fig(fig, "hid0_t0_hist", train_params_loc, SUBFOLDER)
-
-    fig, ax = make_fig(figsize=traj_size)
-    ax.hist(hid_0[-1].flatten())
-    out_fig(fig, "hid0_T_hist", train_params_loc, SUBFOLDER)
-
-    # pcs = dim_tools.get_pcs_stefan(hid, [0, 1])
-    # pcs = np.zeros(hid.shape[:-1] + (3,))
-    pcs = []
-    p_track = 0
-    # y0 = y == 0
-    # y1 = y == 1
-    norm = np.linalg.norm
-    for i1 in range(len(hid)):
-        # pc = dim_tools.get_pcs_stefan(hid[:, i1], [0, 1, 2])
-        pc = utils.get_pcs_covariance(hid[i1], [0, 1])
-        if i1 > 0:
-            # pc_old = pc.copy()
-            pc_flip_x = pc.clone()
-            pc_flip_x[:, 0] = -pc_flip_x[:, 0]
-            pc_flip_y = pc.clone()
-            pc_flip_y[:, 1] = -pc_flip_y[:, 1]
-            pc_flip_both = pc.clone()
-            pc_flip_both[:, 0] = -pc_flip_both[:, 0]
-            pc_flip_both[:, 1] = -pc_flip_both[:, 1]
-
-            difference0 = norm(p_track - pc)
-            difference1 = norm(p_track - pc_flip_x)
-            difference2 = norm(p_track - pc_flip_y)
-            difference3 = norm(p_track - pc_flip_both)
-
-            amin = np.argmin([difference0, difference1, difference2, difference3])
-
-            if amin == 1:
-                pc[:, 0] = -pc[:, 0]
-            elif amin == 2:
-                pc[:, 1] = -pc[:, 1]
-            elif amin == 3:
-                pc[:, 0] = -pc[:, 0]
-                pc[:, 1] = -pc[:, 1]
-        p_track = pc.clone()
-        # pcs[:, i1] = pc
-        pcs.append(pc[:num_plot])
-    # pcs = pcs[:num_plot]
-    plt.close('all')
-
-    # if gs[0] == 20:
-    #     pcs[:,:,0] = -pcs[:,:,0]
-    # p_track = pcs[0]
-
-    # fig, ax = make_fig()  # This causes an error with the movie
-    # fig, ax = plt.subplots()
-
-    # y = y[:num_plot]
-
-    def take_snap(i0, scat, dim=2, border=False):
-        # hid_pcs_plot = pcs[y==1, i0, :dim]
-        hid_pcs_plot = pcs[i0][:, :dim].numpy()
-        # hid_pcs_plot = hid_pcs_plot[:, :2] - np.mean(hid_pcs_plot[:, :2], axis=0)
-        xm = np.min(hid_pcs_plot[:, 0])
-        xM = np.max(hid_pcs_plot[:, 0])
-        ym = np.min(hid_pcs_plot[:, 1])
-        yM = np.max(hid_pcs_plot[:, 1])
-        xc = (xm + xM)/2
-        yc = (ym + yM)/2
-        hid_pcs_plot[:, 0] = hid_pcs_plot[:, 0] - xc
-        hid_pcs_plot[:, 1] = hid_pcs_plot[:, 1] - yc
-        if class_style == 'shape':
-            # scat[0].set_offsets(hid_pcs_plot[y==0])
-            # scat[1].set_offsets(hid_pcs_plot[y==1])
-            scat[0].set_offsets(hid_pcs_plot)
-        else:
-            if dim == 3:
-                scat._offsets3d = juggle_axes(*hid_pcs_plot[:, :dim].T, 'z')
-            else:
-                scat.set_offsets(hid_pcs_plot)
-        # if dim == 3:
-        #     scat[0]._offsets3d = juggle_axes(*hid_pcs_plot[:, :dim].T, 'z')
-        # else:
-        #     scat.set_offsets(hid_pcs_plot)
-
-        xm = np.min(hid_pcs_plot[:, 0])
-        xM = np.max(hid_pcs_plot[:, 0])
-        ym = np.min(hid_pcs_plot[:, 1])
-        yM = np.max(hid_pcs_plot[:, 1])
-        max_extent = max(xM - xm, yM - ym)
-        max_extent_arg = xM - xm > yM - ym
-        if dim == 2:
-            x_factor = .4
-            if max_extent_arg:
-                ax.set_xlim([xm - x_factor*max_extent, xM + x_factor*max_extent])
-                ax.set_ylim([xm - .1*max_extent, xM + .1*max_extent])
-            else:
-                ax.set_xlim([ym - x_factor*max_extent, yM + x_factor*max_extent])
-                ax.set_ylim([ym - .1*max_extent, yM + .1*max_extent])
-        else:
-            if max_extent_arg:
-                ax.set_xlim([xm - .1*max_extent, xM + .1*max_extent])
-                ax.set_ylim([xm - .1*max_extent, xM + .1*max_extent])
-                ax.set_zlim([xm - .1*max_extent, xM + .1*max_extent])
-            else:
-                ax.set_xlim([ym - .1*max_extent, yM + .1*max_extent])
-                ax.set_ylim([ym - .1*max_extent, yM + .1*max_extent])
-                ax.set_zlim([ym - .1*max_extent, yM + .1*max_extent])
-            # ax.set_xlim([-10, 10])
-            # ax.set_ylim([-10, 10])
-            # ax.set_zlim([-10, 10])
-
-        if dim == 3:
-            if border:
-                out_fig(fig, "snapshot_{}".format(i0), train_params_loc,
-                        subfolder=SUBFOLDER + "snaps_3d/border/", axis_type=0,
-                        name_order=1)
-            else:
-                out_fig(fig, "snapshot_{}".format(i0), train_params_loc,
-                        subfolder=SUBFOLDER + "snaps_3d/no_border/", axis_type=2,
-                        name_order=1)
-            # out_fig(fig, "snapshot_{}".format(i0), g, X_dim, folder=folder + "snaps/no_border/", axis_type=0,
-            #         name_order=1)
-        else:
-            if border:
-                out_fig(fig, "snapshot_{}".format(i0), train_params_loc,
-                        subfolder=SUBFOLDER + "snaps/border/", axis_type=0,
-                        name_order=1)
-            else:
-                out_fig(fig, "snapshot_{}".format(i0), train_params_loc,
-                        subfolder=SUBFOLDER + "snaps/no_border/", axis_type=2,
-                        name_order=1)
-            # out_fig(fig, "snapshot_{}".format(i0), g, X_dim, folder=folder + "snaps/no_border/", axis_type=0,
-            #         name_order=1)
-        return scat,
-
-    dim = 2
-    hid_pcs_plot = pcs[0]
-    if dim == 3:
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.set_xlim([-10, 10])
-        ax.set_ylim([-10, 10])
-        ax.set_zlim([-10, 10])
-        # ax.xaxis._axinfo['juggled'] = (0, 1, 0)
-    else:
-        fig, ax = make_fig()
-    ax.grid(False)
-
-    scat = ax.scatter(*hid_pcs_plot[:num_plot, :dim].T, c=coloring,
-                      edgecolors=edge_coloring, s=10, linewidths=.65)
-
-    if FEEDFORWARD:
-        snap_idx = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-    else:
-        snap_idx = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30])
-    # snap_idx = np.array([0, 1, 2, 3])
-    for i0 in snap_idx:
-        take_snap(i0, scat, dim=dim, border=False)
-    # plt.close('all')
-    # anim = animation.FuncAnimation(fig, take_snap, interval=200, frames=n_points - 1, blit=True)
-    # anim = animation.FuncAnimation(fig, take_snap, frames=8, interval=200)
-    # anim.save('/Users/matt/something.mp4')
-    # plt.show()
-    # anim.save("figs/pdf/snaps/video_{}.mp4".format(g))
-    # fname = point_replace("/Users/matt/video_{}".format(g))
-    # fname = point_replace("video_{}".format(g))
-    # anim.save(fname + ".mp4")
-    # anim.save("something.gif")
-    # plt.show()
-
 def snapshots_through_time(train_params):
-    # a = classification_dep.ClassificationAnalysis(architecture='noisy_recurrent')
-    # init_params = dict(architecture='recurrent')
     X_dim = train_params['X_dim']
     FEEDFORWARD = train_params['network'] == 'feedforward'
     SUBFOLDER = train_params['network'] + '/' + 'activity_visualization/' + train_params['hid_nonlin'] + '/'
 
     num_pnts_dim_red = 800
-    # num_pnts_dim_red = 40000
     num_plot = 600
 
     train_params_loc = copy.deepcopy(train_params)
@@ -642,7 +289,6 @@ def snapshots_through_time(train_params):
     p_track = 0
     norm = np.linalg.norm
     for i1 in range(len(hid)):
-        # pc = dim_tools.get_pcs_stefan(hid[:, i1], [0, 1, 2])
         pc = utils.get_pcs_covariance(hid[i1], [0, 1])
         if i1 > 0:
 
@@ -871,25 +517,10 @@ def acc_and_loss_over_training(train_params, seeds, hue_dictionary=None, hue_tar
                 # checkpoints = loader.get_check_nums(run_dir)
                 accs = []
                 with torch.no_grad():
-                    # for k, epoch in enumerate(epoch_list[hue_idx]):
-                    # Todo: set up to work with pretrain
-                    # for epoch in range(0, num_epochs_pretrain):
-                    #     # for save in saves[epoch]:
-                    #     for save in [0]:
-                    #         print(epoch, save)
-                    #         loader.load_model_from_epoch_and_dir(model, run_dir, epoch, save)
-                    #         print(model.Wrec.detach()[:4, :4])
-                    #         out = model(X_pretrain).detach()
-                    #         if not FEEDFORWARD:
-                    #             out = out[:, -1]
-                    #         out_cat = torch.argmax(out, dim=1)
-                    #         acc = torch.mean((out_cat == Y_pretrain).type(torch.float)).item()
-                    #         print(acc)
-                    #         accs.append(acc)
                     for epoch in epoch_list:
                         # for save in saves[epoch]:
                         for save in [0]:
-                            print(epoch, save)
+                            # print(epoch, save)
                             loader.load_model_from_epoch_and_dir(model, run_dir, epoch, save)
                             out = model(X).detach()
                             if not FEEDFORWARD:
@@ -922,7 +553,6 @@ def acc_and_loss_over_training(train_params, seeds, hue_dictionary=None, hue_tar
                                                        epoch_plot)
 
     fig, ax = utils.make_fig(figsize)
-    # sns.lineplot(ax=ax, x='epoch', y='accuracy', data=loss_and_acc_table, hue=hue_target_str)
     g = sns.lineplot(ax=ax, x='num_training_samples', y='accuracy', data=loss_and_acc_table, hue=hue_target_str,
                      estimator=est_acc, ci=ci_acc)
     # if g.legend_ is not None:
@@ -1144,10 +774,13 @@ def dim_over_layers(seeds, gs, train_params, dim_curve_style='before_after', fig
 
     fig, ax = make_fig((1.5, 1.2))
     g = sns.lineplot(ax=ax, x=layer_label, y=stat_key, data=dim_table, estimator=est_dim,
-                     ci=ci_dim, style='training', hue='g')
+                     ci=ci_dim, style='training', style_order=['after', 'before'], hue='g')
+    # g2 = sns.lineplot(ax=ax, x=layer_label, y=stat_key, data=dim_table, estimator=None,
+    #                  units='seed', style='training', style_order=['after', 'before'], hue='g')
     # g = sns.lineplot(ax=ax, x=layer_label, y=stat_key, data=dim_table, style='training', hue='g')
     if g.legend_ is not None:
         g.legend_.remove()
+    fig.show()
     ax.set_xticks(range(len(layers)))
     out_fig(fig, figname, train_params_loc, subfolder=train_params_loc['network'] + '/dim_over_layer/',
             show=False, save=True, axis_type=0, data=dim_table)
@@ -1292,7 +925,7 @@ if __name__ == '__main__':
                         # hid_nonlin='linear',
                         # saves_per_epoch=1,
                         model_seed=0,
-                        rerun=True)
+                        rerun=False)
 
     train_params_lyap = copy.copy(train_params)
     train_params_lyap['num_epochs'] = 40
@@ -1311,7 +944,7 @@ if __name__ == '__main__':
     # dim_over_layers(range(5), [5, 250], train_params, dim_curve_style='before_after', figname=fn)
     # dim_over_layers([1], [20, 250], train_params, dim_curve_style='before_after', figname=fn)
     # dim_over_layers(range(5), [250], train_params, dim_curve_style='before_after', figname=fn)
-    dim_over_layers([0,1], [250], train_params, dim_curve_style='before_after', figname=fn)
+    dim_over_layers([0,1], [20, 250], train_params, dim_curve_style='before_after', figname=fn)
     # clust_holdout_over_layers(list(range(5)), [5, 250], train_params, colors=chaos_colors,
     #                           dim_curve_style='before_after',
     #                           comparison='before_after', figname="clust_holdout")
