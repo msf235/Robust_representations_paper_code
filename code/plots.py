@@ -1,34 +1,25 @@
 import copy
 import pickle as pkl
-from pathlib import Path
-
 from scipy import stats as st
 import torch
 from sklearn import svm
 from sklearn import linear_model
 import pandas as pd
-import matplotlib.ticker
-from matplotlib import animation, ticker
 import seaborn as sns
-import subprocess
 import warnings
-# warnings.filterwarnings("ignore", category=sklearn.exceptions.ConvergenceWarning)
 import numpy as np
 import os
 import matplotlib.colors as mcolors
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d.art3d import juggle_axes
-
 import lyap
 import model_loader_utils as loader
 import initialize_and_train
 import utils
 
-# from joblib import Parallel, delayed, Memory
-
-
-# memory = Memory(location='../joblib_cache', verbose=2)
-# memory.clear()
+## Functions for computing means and error bars for the plots. 95% confidence intervals and means are currently
+# implemented in this code. The commented out code is for using a gamma distribution to compute these, but uses a
+# custom version of seaborn plotting library to plot.
 
 # def ci_acc(vals):
 #     median, bounds = median_and_bound(vals, perc_bound=0.75, loc=1., shift=-.0001,
@@ -56,35 +47,26 @@ def point_replace(a_string):
     a_string = str(a_string)
     return a_string.replace(".", "p")
 
-def get_color(hidden, cmap=plt.cm.plasma):
-    mag = torch.max(hidden) - torch.min(hidden)
-    # hid_norm = (hidden - np.min(hidden)) / (mag - 1)
-    hid_norm = (hidden.float() - torch.min(hidden))/mag
+def get_color(x, cmap=plt.cm.plasma):
+    """Get normalized color assignments based on input data x and colormap cmap."""
+    mag = torch.max(x) - torch.min(x)
+    x_norm = (x.float() - torch.min(x))/mag
+    return cmap(x_norm)
 
-    return cmap(hid_norm)
-
-def median_and_bound(samples, perc_bound, dist_type='gamma', loc=0., shift=0, reflect=False, show_fit=False):
+def median_and_bound(samples, perc_bound, dist_type='gamma', loc=0., shift=0, reflect=False):
+    """Get median and probability mass intervals for a gamma distribution fit of samples."""
     samples = np.array(samples)
 
     def do_reflect(x, center):
         return -1*(x - center) + center
 
     if dist_type == 'gamma':
-        # gam = st.gamma
-        # a1 = 2
-        # scale = 200
-        # xx = np.linspace(0,1500)
-        # yy = gam.pdf(xx, a1, loc=0, scale=scale)
-        # median_true = st.gamma.median(a1, loc=0, scale=scale)
-        #
-        # samples = gam.rvs(a1, loc=0, scale=scale, size=40)
         if np.sum(samples[0] == samples) == len(samples):
             median = samples[0]
             interval = [samples[0], samples[0]]
             return median, interval
 
         if reflect:
-            # reflect_point = loc + shift
             samples_reflected = do_reflect(samples, loc)
             shape_ps, loc_fit, scale = st.gamma.fit(samples_reflected, floc=loc + shift)
             median_reflected = st.gamma.median(shape_ps, loc=loc, scale=scale)
@@ -95,42 +77,12 @@ def median_and_bound(samples, perc_bound, dist_type='gamma', loc=0., shift=0, re
             shape_ps, loc, scale = st.gamma.fit(samples, floc=loc + shift)
             median = st.gamma.median(shape_ps, loc=loc, scale=scale)
             interval = np.array(st.gamma.interval(perc_bound, shape_ps, loc=loc, scale=scale))
-
-        if np.isnan(np.sum(median)) or np.isnan(np.sum(interval)):
-            print
-
-        if show_fit:
-            fig, ax = plt.subplots()
-            ax.hist(samples, density=True)
-            xx = np.linspace(np.min(samples), np.max(samples))
-            if reflect:
-                yy_hat = st.gamma.pdf(do_reflect(xx, loc), shape_ps, loc=loc, scale=scale)
-                ax.plot(xx, yy_hat)
-                ax.axvline(x=median)
-                ax.axvline(x=interval[0], linestyle='--')
-                ax.axvline(x=interval[1], linestyle='--')
-                plt.show()
-                print
-            else:
-                yy_hat = st.gamma.pdf(xx, shape_ps, loc=loc, scale=scale)
-                ax.plot(xx, yy_hat)
-                ax.axvline(x=median)
-                ax.axvline(x=interval[0], linestyle='--')
-                ax.axvline(x=interval[1], linestyle='--')
-                plt.show()
-            print
-
-            # plt.plot(xx, yy)
-            # plt.plot(xx, yy_hat, '--')
-            # plt.axvline(x=median)
-            # plt.axvline(x=median_true, color='red')
-            # plt.axvline(x=interval[0], linestyle='--')
-            # plt.axvline(x=interval[1], linestyle='--')
-            # plt.show()
-            # plt.close()
+    else:
+        raise ValueError("Distribution option (dist_type) not recognized.")
 
     return median, interval
 
+## Set parameters for figure aesthetics
 plt.rcParams['font.size'] = 6
 plt.rcParams['font.size'] = 6
 plt.rcParams['lines.markersize'] = 1
@@ -138,12 +90,10 @@ plt.rcParams['lines.linewidth'] = 1
 plt.rcParams['axes.labelsize'] = 7
 plt.rcParams['axes.spines.right'] = False
 plt.rcParams['axes.spines.top'] = False
-# plt.rcParams['text.usetex'] = True
-# plt.rc('text.latex', preamble=r'\usepackage{amsmath}')
 plt.rcParams['axes.titlesize'] = 8
 
+# Colormaps
 class_style = 'color'
-
 cols11 = np.array([90, 100, 170])/255
 cols12 = np.array([37, 50, 120])/255
 cols21 = np.array([250, 171, 62])/255
@@ -153,62 +103,23 @@ cmap_activation_pnts_edge = mcolors.ListedColormap([cols12, cols22])
 
 rasterized = False
 dpi = 800
-
 ext = 'pdf'
-# ext = 'png'
-create_svg = False
 
-# figsize = (2, 1.6)
+# Default figure size
 figsize = (1.5, 1.2)
-figsize_small = (1, 0.8)
-# figsize_long = (1.2, 1.2/1.5)
-# figsize_smaller = (.55, 0.5)
-figsize_smaller = (.8, 0.6)
-figsize_smallest = (.3, 0.2)
-# figsize_long = (.8, 0.4)
-figsize_long = (1, 0.5)
-# figsize_smallest = (.4, 0.25)
 ax_pos = (0, 0, 1, 1)
 
 def make_fig(figsize=figsize, ax_pos=ax_pos):
-    """
-
-    Args:
-        figsize ():
-        ax_pos ():
-
-    Returns:
-
-    """
+    """Create figure."""
     fig = plt.figure(figsize=figsize)
     ax = fig.add_axes(ax_pos)
     return fig, ax
 
 def out_fig(fig, name, train_params, subfolder='', show=False, save=True, axis_type=0, name_order=0, data=None):
-    """
-
-    Args:
-        fig ():
-        name ():
-        show ():
-        save ():
-        axis_type (int): 0: leave axes alone, 1: Borders but no ticks, 2: Axes off
-
-    Returns:
-
-    """
-    # fig.tight_layout()
-    # fig.axes[0].ticklabel_format(style='sci',scilimits=(-2,2),axis='both')
-    # fig.tight_layout()
+    """ Save figure."""
     folder = '../results/figs/Win_{}/'.format(train_params['Win'])
     os.makedirs('../results/figs/', exist_ok=True)
     os.makedirs(folder, exist_ok=True)
-    # os.makedirs(folder + 'snaps/', exist_ok=True)
-    # os.makedirs(folder + 'snaps/no_border', exist_ok=True)
-    # os.makedirs(folder + 'snaps/border', exist_ok=True)
-    # os.makedirs(folder + 'snaps_3d/no_border', exist_ok=True)
-    # os.makedirs(folder + 'snaps_3d/border', exist_ok=True)
-    g = train_params['g_radius']
     nonlinearity = train_params['hid_nonlin']
     loss = train_params['loss']
     X_dim = train_params['X_dim']
@@ -229,10 +140,9 @@ def out_fig(fig, name, train_params, subfolder='', show=False, save=True, axis_t
         ax.axis('off')
     if name_order == 0:
         fig_name = folder + subfolder + point_replace(
-            '{}_g_{}_Xdim_{}_{}_{}'.format(name, g, X_dim, nonlinearity, loss))
+            '{}_Xdim_{}_{}_{}'.format(name, X_dim, nonlinearity, loss))
     else:
-        fig_name = folder + subfolder + point_replace('g_{}_Xdim_{}_{}'.format(g, X_dim, name, nonlinearity, loss))
-    print(fig_name)
+        fig_name = folder + subfolder + point_replace('Xdim_{}_{}_{}_{}'.format(X_dim, name, nonlinearity, loss))
     if save:
         os.makedirs(folder + subfolder, exist_ok=True)
         fig_file = fig_name + '.' + ext
@@ -245,10 +155,19 @@ def out_fig(fig, name, train_params, subfolder='', show=False, save=True, axis_t
 
     if data is not None:
         os.makedirs(folder + subfolder + 'data/', exist_ok=True)
-        with open(folder + subfolder + 'data/g_{}_Xdim_{}_{}_data'.format(g, X_dim, name), 'wb') as fid:
+        with open(folder + subfolder + 'data/Xdim_{}_{}_data'.format(X_dim, name), 'wb') as fid:
             pkl.dump(data, fid, protocol=4)
 
 def snapshots_through_time(train_params):
+    """
+    Plot PCA snapshots of the representation through time.
+
+    Parameters
+    ----------
+    train_params : dict
+        Dictionary of training parameters that specify the model and dataset to use for training.
+
+    """
     X_dim = train_params['X_dim']
     FEEDFORWARD = train_params['network'] == 'feedforward'
     SUBFOLDER = train_params['network'] + '/' + 'activity_visualization/' + train_params['hid_nonlin'] + '/'
@@ -400,103 +319,64 @@ def snapshots_through_time(train_params):
     for i0 in snap_idx:
         take_snap(i0, scat, dim=dim, border=False)
 
-def acc_and_loss_over_training(train_params, seeds, hue_dictionary=None, hue_target=(None, None), epoch_list=None,
-                               epoch_plot=None, figname=None):
+def acc_and_loss_over_training(train_params, seeds, epochs, hue_dictionary=None, hue_legend_key=None, figname=None):
     """
     Plot accuracy over training. hue_dictionary is an optional dictionary with a single entry that allows you to
     specify a parameter for which to plot multiple lines with different hues on the same plot.
+
+    Parameters
+    ----------
+    train_params : dict
+        Dictionary of training parameters that specify the model and dataset to use for training.
+    seeds : List[int]
+        List of random number seeds to use for generating instantiations of the model and dataset. Variation over
+        these seeds is used to plot error bars.
+    epochs : List[int]
+        Epochs at which to plot the accuracy.
+    hue_dictionary : Optional[dict]
+        Dictionary specifying values that will result in a different line with a different hue. As an example, if
+        hue_dictionary = {key: [value_1, value_2]}, then key is a parameter that will be set to value_1 and then
+        value_2. Setting key to value_1 results in the plotting of a line with one hue, and setting key to value_2
+        results in the plotting of a line with another hue, so that the final plot has two lines, each with a
+        different hue. key should be a key in train_params.
+    hue_legend_key : Optional[str]
+        The key in hue_dictionary to use for the legend of the plot. If hue_str=None, this is set to the first key of
+        hue_dictionary.
+    figname : Optional[str]
+        Name of the figure to save.
+
     """
     if figname is None:
         figname = 'acc_and_loss_over_training'
-    if epoch_list is None:
-        epoch_list_None = True
-    else:
-        epoch_list_None = False
-    if epoch_plot is None:
-        epoch_plot_None = True
-    else:
-        epoch_plot_None = False
 
-    # @memory.cache()
-    def memoized_core(train_params, seeds, hue_dictionary, hue_target, epoch_list, epoch_plot):
+    def generate_data_table(train_params, seeds, hue_dictionary, hue_legend_key, epochs):
         train_params_loc = copy.copy(train_params)
         spe = train_params_loc['num_train_samples_per_epoch']
-        pretrain = 'pretrain_params' in train_params_loc.keys() and train_params_loc['pretrain_params'] is not None
         NUM_SAMPLES = 100
-        # device = 'cuda'
-        device = 'cpu'
         spe = train_params_loc['num_train_samples_per_epoch']
         FEEDFORWARD = train_params_loc['network'] == 'feedforward'
-        if pretrain:
-            num_epochs_pretrain = train_params_loc['pretrain_params']['num_epochs']
-            start_epoch_train = num_epochs_pretrain
-        else:
-            num_epochs_pretrain = 0
-            start_epoch_train = 0
-        num_epochs_total = num_epochs_pretrain + train_params_loc['num_epochs']
-
-        if hue_target[0] is not None:
-            hue_target_str = hue_target[0]
-            hue_target_idx = 0
-            param_target = train_params_loc
-            # hue_dict_split = [hue_dictionary]
-        elif hue_target[1] is not None:
-            hue_target_str = hue_target[1] + '_pretrain'
-            hue_target_idx = 1
-            # hue_dict_split = [hue_target, hue_target['pretrain']]
-        elif hue_dictionary is None:
-            hue_target_str = None
-        else:
-            raise AttributeError('')
 
         if hue_dictionary is None:
             hue_dictionary_None = True
             hue_keys = []
-            hue_pt_keys = []  # pretrain keys
             loss_and_acc_table = pd.DataFrame(columns=['seed', 'num_training_samples', 'accuracy'])
             num_hues = 1
         else:
             hue_dictionary_None = False
-            if 'pretrain_params' in hue_dictionary:
-                hue_keys = list(hue_dictionary.keys())
-                hue_keys.remove('pretrain_params')
-                hue_pt_keys = list(hue_dictionary['pretrain_params'].keys())
-            else:
-                hue_keys = list(hue_dictionary.keys())
-                hue_pt_keys = list()
-            loss_and_acc_table = pd.DataFrame(columns=['seed', 'num_training_samples', 'accuracy', hue_target_str])
-            if hue_target_idx == 0:
-                num_hues = len(hue_dictionary[hue_target[hue_target_idx]])
-            elif hue_target_idx == 1:
-                num_hues = len(hue_dictionary['pretrain_params'][hue_target[hue_target_idx]])
-            else:
-                raise AttributeError('')
+            hue_keys = list(hue_dictionary.keys())
+            loss_and_acc_table = pd.DataFrame(columns=['seed', 'num_training_samples', 'accuracy', hue_legend_key])
+            num_hues = len(hue_dictionary[hue_keys[0]])
+            if hue_legend_key is None:
+                hue_legend_key = hue_keys[0]
 
         for hue_idx in range(num_hues):
             for key in hue_keys:
                 train_params_loc[key] = hue_dictionary[key][hue_idx]
-            for key in hue_pt_keys:
-                train_params_loc['pretrain_params'][key] = hue_dictionary['pretrain_params'][key][hue_idx]
 
             for i1, seed in enumerate(seeds):
                 train_params_loc['model_seed'] = seed
                 torch.manual_seed(seed)
-                model, params, run_dir = initialize_and_train.initialize_and_train(load_prev_model=False,
-                                                                                   **train_params_loc)
-                model.to(device)
-                if pretrain:
-                    testset_pretrain = params['datasets_pretrain']['train']
-                    X_pretrain = []
-                    Y_pretrain = []
-                    for k in range(NUM_SAMPLES):
-                        x, y = testset_pretrain[k]
-                        X_pretrain.append(x)
-                        if FEEDFORWARD:
-                            Y_pretrain.append(y)
-                        else:
-                            Y_pretrain.append(y[-1])
-                    X_pretrain = torch.stack(X_pretrain)
-                    Y_pretrain = torch.stack(Y_pretrain)
+                model, params, run_dir = initialize_and_train.initialize_and_train(**train_params_loc)
 
                 testset = params['datasets']['train']
                 X = []
@@ -510,17 +390,10 @@ def acc_and_loss_over_training(train_params, seeds, hue_dictionary=None, hue_tar
                         Y.append(y[-1])
                 X = torch.stack(X)
                 Y = torch.stack(Y)
-                epochs, saves = loader.get_epochs_and_saves(run_dir)
-                frac_epochs = utils.saves_to_partial_epochs(epochs, saves)
-                if epoch_list_None:
-                    epoch_list = [frac_epochs]*num_hues
-                # checkpoints = loader.get_check_nums(run_dir)
                 accs = []
                 with torch.no_grad():
-                    for epoch in epoch_list:
-                        # for save in saves[epoch]:
+                    for epoch in epochs:
                         for save in [0]:
-                            # print(epoch, save)
                             loader.load_model_from_epoch_and_dir(model, run_dir, epoch, save)
                             out = model(X).detach()
                             if not FEEDFORWARD:
@@ -528,45 +401,35 @@ def acc_and_loss_over_training(train_params, seeds, hue_dictionary=None, hue_tar
                             out_cat = torch.argmax(out, dim=1)
                             acc = torch.mean((out_cat == Y).type(torch.float)).item()
                             accs.append(acc)
-                    if epoch_plot_None:
-                        epoch_plot = epoch_list[hue_idx]
                     if not hue_dictionary_None:
-                        if hue_target_idx == 0:
-                            hue_target_val = train_params_loc[hue_target[hue_target_idx]]
-                        else:
-                            hue_target_val = train_params_loc['pretrain_params'][hue_target[hue_target_idx]]
-                        d = {'seed': seed, 'num_training_samples': np.array(epoch_plot)*spe, 'accuracy': accs,
-                             hue_target_str: hue_target_val}
+                        d = {'seed': seed, 'num_training_samples': np.array(epochs)*spe, 'accuracy': accs,
+                             hue_legend_key: hue_dictionary[hue_legend_key][hue_idx]}
                     else:
-                        d = {'seed': seed, 'num_training_samples': np.array(epoch_plot)*spe, 'accuracy': accs}
+                        d = {'seed': seed, 'num_training_samples': np.array(epochs)*spe, 'accuracy': accs}
 
                     df = pd.DataFrame(d)
                     loss_and_acc_table = loss_and_acc_table.append(df)
-                    # import ipdb; ipdb.set_trace()
 
         loss_and_acc_table['seed'] = loss_and_acc_table['seed'].astype('category')
         if not hue_dictionary_None:
-            loss_and_acc_table[hue_target_str] = loss_and_acc_table[hue_target_str].astype('category')
-        return loss_and_acc_table, hue_target_str
+            loss_and_acc_table[hue_legend_key] = loss_and_acc_table[hue_legend_key].astype('category')
+        return loss_and_acc_table
 
-    loss_and_acc_table, hue_target_str = memoized_core(train_params, seeds, hue_dictionary, hue_target, epoch_list,
-                                                       epoch_plot)
+    loss_and_acc_table = generate_data_table(train_params, seeds, hue_dictionary, hue_legend_key, epochs)
 
     fig, ax = utils.make_fig(figsize)
-    g = sns.lineplot(ax=ax, x='num_training_samples', y='accuracy', data=loss_and_acc_table, hue=hue_target_str,
+    g = sns.lineplot(ax=ax, x='num_training_samples', y='accuracy', data=loss_and_acc_table, hue=hue_legend_key,
                      estimator=est_acc, ci=ci_acc)
     # if g.legend_ is not None:
     #     g.legend_.remove()
     out_fig(fig, figname, train_params, subfolder=train_params['network'] + '/acc_and_loss_over_training/',
             data=loss_and_acc_table)
 
-def cluster_holdout_test_acc_stat_fun(h, y, clust_identity, classifier_type='logistic_regression', num_repeats=5,
-                                      train_ratio=0.8, seed=11):
+def _cluster_holdout_test_acc_stat_fun(h, y, clust_identity, classifier_type='logistic_regression', num_repeats=5,
+                                       train_ratio=0.8, seed=11):
     np.random.seed(seed)
     num_clusts = np.max(clust_identity) + 1
     num_clusts_train = int(round(num_clusts*train_ratio))
-    # hid_epoch_count = h.shape[0]
-    # num_time_pnts = h.shape[2]
     num_samples = h.shape[0]
     test_accs = np.zeros(num_repeats)
     train_accs = np.zeros(num_repeats)
@@ -577,7 +440,6 @@ def cluster_holdout_test_acc_stat_fun(h, y, clust_identity, classifier_type='log
         clust_identity_shuffled = clust_identity[permutation]
         train_idx = clust_identity_shuffled <= num_clusts_train
         test_idx = clust_identity_shuffled > num_clusts_train
-        # hid_permute = hid[:, permutation]
         hid_train = h[train_idx[perm_inv]]
         y_train = y[train_idx[perm_inv]]
         y_test = y[test_idx[perm_inv]]
@@ -594,19 +456,24 @@ def cluster_holdout_test_acc_stat_fun(h, y, clust_identity, classifier_type='log
 
     return train_accs, test_accs
 
-def clust_holdout_over_layers(seeds, gs, train_params, dim_curve_style='before_after',
-                              figname="clust_holdout_over_layers"):
+def clust_holdout_over_layers(seeds, gs, train_params, figname="clust_holdout_over_layers"):
     """
-    Figures that require instantiation of a single model to generate.
-    Args:
-        g ():
+    Logistic regression training and testing error on the representation through the layers. Compares networks trained
+    with different choices of g_radius (specified by input parameter gs).
 
-    Returns:
-
+    Parameters
+    ----------
+    seeds : List[int]
+        List of random number seeds to use for generating instantiations of the model and dataset. Variation over
+        these seeds is used to plot error bars.
+    gs : List[float]
+        Values of g_radius to iterate over.
+    train_params : dict
+        Dictionary of training parameters that specify the model and dataset to use for training. Value of g_radius
+        is overwritten by values in gs.
+    figname : str
+        Name of the figure to save.
     """
-    # Todo: look at margins before and after training
-    # stp()
-    # %% Get an example of plot_dim_vs_epoch_and_time compression down to two classes
     if not hasattr(gs, '__len__'):
         gs = [gs]
     g_str = ''
@@ -615,12 +482,10 @@ def clust_holdout_over_layers(seeds, gs, train_params, dim_curve_style='before_a
     g_str = g_str[1:]
     layer_label = 'layer'
 
-    # @memory.cache()
-    def memoized_core_clust_holdout_over_layers(seeds, gs, train_params, dim_curve_style):
+    def generate_data_table(seeds, gs, train_params):
         layer_label = 'layer'
         clust_acc_table = pd.DataFrame(columns=['seed', 'g', 'training', layer_label, 'LR training', 'LR testing'])
 
-        # D_eff_responses = []
         train_params_loc = copy.deepcopy(train_params)
 
         for i0, seed in enumerate(seeds):
@@ -643,56 +508,37 @@ def clust_holdout_over_layers(seeds, gs, train_params, dim_curve_style='before_a
                 else:
                     X0 = X[:, 0]
 
-                if dim_curve_style == 'before_after':
-                    for epoch, epoch_label in zip([0, -1], ['before', 'after']):
-                        loader.load_model_from_epoch_and_dir(model, run_dir, epoch)
-                        # hid = model.get_post_activations(X.type(torch.float32))[:-1]
-                        hid = [X0]
-                        hid += model.get_post_activations(X)[:-1]
-                        if len(Y.shape) > 1:
-                            Y = Y[:, -1]
-                        cluster_identity = class_datasets['train'].cluster_identity
-                        # stats = [cluster_holdout_test_acc_stat_fun(h.numpy(), Y.numpy(), cluster_identity) for h in
-                        #          hid]
-                        ds = []
-                        for lay, h in enumerate(hid):
-                            stat = cluster_holdout_test_acc_stat_fun(h.numpy(), Y.numpy(), cluster_identity)
-                            ds.extend([{'seed': seed, 'g': g, 'training': epoch_label, layer_label: lay, 'LR training':
-                                stat[0][k], 'LR testing': stat[1][k]} for k in range(len(stat[0]))])
+                for epoch, epoch_label in zip([0, -1], ['before', 'after']):
+                    loader.load_model_from_epoch_and_dir(model, run_dir, epoch)
+                    hid = [X0]
+                    hid += model.get_post_activations(X)[:-1]
+                    if len(Y.shape) > 1:
+                        Y = Y[:, -1]
+                    cluster_identity = class_datasets['train'].cluster_identity
+                    ds = []
+                    for lay, h in enumerate(hid):
+                        stat = _cluster_holdout_test_acc_stat_fun(h.numpy(), Y.numpy(), cluster_identity)
+                        ds.extend([{'seed': seed, 'g': g, 'training': epoch_label, layer_label: lay, 'LR training':
+                            stat[0][k], 'LR testing': stat[1][k]} for k in range(len(stat[0]))])
 
-                            # for k in range(len(stat[0])):
-                            #     d = {'seed': seed, 'g': g, 'training': epoch_label, 't': t, 'LR training':
-                            #         stat[0][k], 'LR testing': stat[1][k]}
-                            #     ds.append(d)
-
-                            # df = pd.DataFrame(d)
-                        clust_acc_table = clust_acc_table.append(pd.DataFrame(ds), ignore_index=True)
+                    clust_acc_table = clust_acc_table.append(pd.DataFrame(ds), ignore_index=True)
 
         clust_acc_table['seed'] = clust_acc_table['seed'].astype('category')
         clust_acc_table['g'] = clust_acc_table['g'].astype('category')
         clust_acc_table['training'] = clust_acc_table['training'].astype('category')
         return clust_acc_table
 
-    clust_acc_table = memoized_core_clust_holdout_over_layers(seeds, gs, train_params, dim_curve_style)
+    clust_acc_table = generate_data_table(seeds, gs, train_params)
     layers = set(clust_acc_table[layer_label])
 
-    # sns.lineplot(ax=ax, x='t', y=stat_key, data=dim_table, hue='training', style='g')
-    # medians = {'train': np.zeros((len(gs), 2, len(layers))), 'test': np.zeros((len(gs), 2, len(layers)))}
-    # intervals = {'train': np.zeros((len(gs), 2, len(layers), 2)), 'test': np.zeros((len(gs), 2, len(layers), 2))}
-    train_str = ['before', 'after']
-    stage_key = {'train': 'LR training', 'test': 'LR testing'}
-    train_mark = ['--', '-']
-    for stage in ['train', 'test']:
-        if stage == 'train':
+    for stage in ['LR training', 'LR testing']:
+        if stage == 'LR training':
             clust_acc_table_stage = clust_acc_table.drop(columns=['LR testing'])
         else:
             clust_acc_table_stage = clust_acc_table.drop(columns=['LR training'])
         fig, ax = make_fig((1.5, 1.2))
-        g = sns.lineplot(ax=ax, x=layer_label, y=stage_key[stage], data=clust_acc_table_stage, estimator=est_acc,
-                         ci=ci_acc,
-                         style='training',
-                         hue='g'
-                         )
+        g = sns.lineplot(ax=ax, x=layer_label, y=stage, data=clust_acc_table_stage, estimator=est_acc,
+                         ci=ci_acc, style='training', hue='g')
         # if g.legend_ is not None:
         #     g.legend_.remove()
         ax.set_ylim([-.01, 1.01])
@@ -703,18 +549,26 @@ def clust_holdout_over_layers(seeds, gs, train_params, dim_curve_style='before_a
 
     plt.close('all')
 
-def dim_over_layers(seeds, gs, train_params, dim_curve_style='before_after', figname="dim_over_layers", T=0):
+def dim_over_layers(seeds, gs, train_params, figname="dim_over_layers", T=0):
     """
-    Figures that require instantiation of a single model to generate.
-    Args:
-        g ():
+    Effective dimension measured over layers (or timepoints if looking at an RNN) of the network, before and after
+    training.
 
-    Returns:
-
+    Parameters
+    ----------
+    seeds : List[int]
+        List of random number seeds to use for generating instantiations of the model and dataset. Variation over
+        these seeds is used to plot error bars.
+    gs : List[float]
+        Values of g_radius to iterate over.
+    train_params : dict
+        Dictionary of training parameters that specify the model and dataset to use for training. Value of g_radius
+        is overwritten by values in gs.
+    figname : str
+        Name of the figure to save.
+    T : int
+        Final timepoint to plot (if looking at an RNN). If 0, disregard this parameter.
     """
-    # Todo: look at margins before and after training
-    # stp()
-    # %% Get an example of plot_dim_vs_epoch_and_time compression down to two classes
     if not hasattr(gs, '__len__'):
         gs = [gs]
     g_str = ''
@@ -724,9 +578,7 @@ def dim_over_layers(seeds, gs, train_params, dim_curve_style='before_after', fig
     stat_key = 'dim'
     layer_label = 'layer'
 
-    # D_eff_responses = []
     train_params_loc = copy.deepcopy(train_params)
-    num_epochs = train_params_loc['num_epochs']
     dim_table = pd.DataFrame(columns=['seed', 'g', 'training', layer_label, stat_key])
 
     for i0, seed in enumerate(seeds):
@@ -740,7 +592,6 @@ def dim_over_layers(seeds, gs, train_params, dim_curve_style='before_after', fig
             model, params, run_dir = initialize_and_train.initialize_and_train(**train_params_loc)
 
             class_datasets = params['datasets']
-            num_train_samples = len(class_datasets['train'])
             class_datasets['train'].max_samples = num_pnts_dim_red
             torch.manual_seed(params['model_seed'])
             X, Y = class_datasets['train'][:]
@@ -751,21 +602,17 @@ def dim_over_layers(seeds, gs, train_params, dim_curve_style='before_after', fig
                 X0 = X[:, 0]
             else:
                 X0 = X
-            # X = torch.tensor(X).float()
-            # X0 = torch.tensor(X0).float()
 
-            if dim_curve_style == 'before_after':
-                for epoch, epoch_label in zip([0, -1], ['before', 'after']):
-                    loader.load_model_from_epoch_and_dir(model, run_dir, epoch)
-                    # hid = model.get_post_activations(X.type(torch.float32))[:-1]
-                    hid = [X0]
-                    hid += model.get_post_activations(X)[:-1]
-                    if len(Y.shape) > 1:
-                        Y = Y[:, -1]
-                    stats = [utils.get_effdim(h, False).item() for h in hid]
-                    ds = {'seed': seed, 'g': g, 'training': epoch_label, layer_label: list(range(len(hid))),
-                          stat_key: stats}
-                    dim_table = dim_table.append(pd.DataFrame(ds), ignore_index=True)
+            for epoch, epoch_label in zip([0, -1], ['before', 'after']):
+                loader.load_model_from_epoch_and_dir(model, run_dir, epoch)
+                hid = [X0]
+                hid += model.get_post_activations(X)[:-1]
+                if len(Y.shape) > 1:
+                    Y = Y[:, -1]
+                stats = [utils.get_effdim(h, False).item() for h in hid]
+                ds = {'seed': seed, 'g': g, 'training': epoch_label, layer_label: list(range(len(hid))),
+                      stat_key: stats}
+                dim_table = dim_table.append(pd.DataFrame(ds), ignore_index=True)
 
     dim_table['seed'] = dim_table['seed'].astype('category')
     dim_table['g'] = dim_table['g'].astype('category')
@@ -775,9 +622,6 @@ def dim_over_layers(seeds, gs, train_params, dim_curve_style='before_after', fig
     fig, ax = make_fig((1.5, 1.2))
     g = sns.lineplot(ax=ax, x=layer_label, y=stat_key, data=dim_table, estimator=est_dim,
                      ci=ci_dim, style='training', style_order=['after', 'before'], hue='g')
-    # g2 = sns.lineplot(ax=ax, x=layer_label, y=stat_key, data=dim_table, estimator=None,
-    #                  units='seed', style='training', style_order=['after', 'before'], hue='g')
-    # g = sns.lineplot(ax=ax, x=layer_label, y=stat_key, data=dim_table, style='training', hue='g')
     if g.legend_ is not None:
         g.legend_.remove()
     fig.show()
@@ -787,48 +631,40 @@ def dim_over_layers(seeds, gs, train_params, dim_curve_style='before_after', fig
 
     plt.close('all')
 
-def lyaps(seeds, train_params, epochs_plot, figname="lyaps"):
+def lyaps(seeds, train_params, epochs, figname="lyaps"):
     """
-    Figures that require instantiation of a single model to generate.
-    Args:
-        g ():
+    Lyapunov exponent plots.
 
-    Returns:
-
+    Parameters
+    ----------
+    seeds : List[int]
+        List of random number seeds to use for generating instantiations of the model and dataset. Variation over
+        these seeds is used to plot error bars.
+    train_params : dict
+        Dictionary of training parameters that specify the model and dataset to use for training. Value of g_radius
+        is overwritten by values in gs.
+    epochs : List[int]
+        Epochs at which to plot the accuracy.
+    figname : str
+        Name of the figure to save.
     """
-    # Todo: look at margins before and after training
-    # stp()
-    # %% Get an example of plot_dim_vs_epoch_and_time compression down to two classes
-    stat_key = 'dim'
-    layer_label = 'layer'
-
     ICs = 'random'
 
-    # D_eff_responses = []
     train_params_loc = copy.deepcopy(train_params)
-    num_epochs = train_params_loc['num_epochs']
     lyap_table = pd.DataFrame(columns=['seed', 'epoch', 'lyap', 'lyap_num', 'sem', 'chaoticity'])
-
     k_LE = 10
 
     for i0, seed in enumerate(seeds):
         train_params_loc['model_seed'] = seed
 
-        num_pnts_dim_red = 500
-
         model, params, run_dir = initialize_and_train.initialize_and_train(**train_params_loc)
 
-        # class_datasets = params['datasets']
-        # num_train_samples = len(class_datasets['train'])
-        # class_datasets['train'].max_samples = num_pnts_dim_red
         torch.manual_seed(train_params_loc['model_seed'])
-        # X, Y = class_datasets['train'][:]
 
-        for epoch in epochs_plot:
+        for epoch in epochs:
             loader.load_model_from_epoch_and_dir(model, run_dir, epoch)
             Wrec = model.Wrec.detach().numpy()
             Win = model.Win.detach().numpy()
-            Wout = model.Wout.detach().numpy()
             brec = model.brec.detach().numpy()
 
             if isinstance(ICs, str):
@@ -842,129 +678,20 @@ def lyaps(seeds, train_params, epochs_plot, figname="lyaps"):
             LEs, sem, trajs = lyap.getSpectrum(Wrec, brec, Win, x=0, k_LE=k_LE, max_iters=1000,
                                                max_ICs=10, ICs=ICs_data, tol=2e-3, verbose=True)
             LEs = np.sort(LEs)[::-1]
-            # spectra, errors = utils.lyaps_through_training(w, epochs_chaos, ICs, k_LE, max_IC, num_iter,
-            #                                               tol=2e-3)
             chaoticity = np.sum(LEs[:3]/np.arange(1, len(LEs[:3]) + 1))
             d = [{'seed': seed, 'epoch': epoch, 'lyap': LEs[k], 'lyap_num': k, 'sem': sem,
                   'chaoticity': chaoticity} for k in range(len(LEs))]
-            # d = {'seed': seed, 'g': g, 'epoch': epoch, 'lyap': LEs, 'sem': sem,
-            #      'chaoticity': chaoticity}
             lyap_table = lyap_table.append(d, ignore_index=True)
 
     lyap_table['seed'] = lyap_table['seed'].astype('category')
     lyap_table['epoch'] = lyap_table['epoch'].astype('category')
 
     fig, ax = make_fig((2, 1.2))
-    # g = sns.lineplot(ax=ax, x=layer_label, y=stat_key, data=dim_table, estimator=est_dim,
-    #                  ci=ci_dim, style='training', hue='g')
-    # g = sns.lineplot(ax=ax, x='lyap_num', y='lyap', data=lyap_table, style='training', hue='g')
-    # g = sns.scatterplot(ax=ax, x='lyap_num', y='lyap', data=lyap_table, style='training', hue='g')
     lyap_table_plot = lyap_table.drop(columns=['sem', 'chaoticity'])
-    # lyap_table_plot = lyap_table[lyap_table_plot['epoch'] == 0]
     g = sns.pointplot(ax=ax, x='lyap_num', y='lyap', data=lyap_table_plot, style='training', hue='epoch', ci=95,
                       scale=0.5)
-    # g.legend_.remove()
     ax.set_xticks(sorted(list(set(lyap_table['lyap_num']))))
     ax.axhline(y=0, color='black', linestyle='--')
     out_fig(fig, figname, train_params_loc, subfolder=train_params_loc['network'] + '/lyaps/',
             show=False, save=True, axis_type=0, data=lyap_table)
     #
-    # plt.close('all')
-
-if __name__ == '__main__':
-    Win = 'orthog'
-    train_params = dict(N=200,
-                        # num_epochs=40,
-                        # num_epochs=80,
-                        num_epochs=150,
-                        # num_epochs=10,
-                        # num_epochs=3,
-                        # num_train_samples_per_epoch=1250,
-                        num_train_samples_per_epoch=800,
-                        # num_train_samples_per_epoch=640,
-                        X_clusters=60,
-                        # X_dim=200,
-                        X_dim=2,
-                        num_classes=2,
-                        n_lag=11,
-                        # n_lag=10,
-                        # n_lag=9,
-                        # n_lag=51,
-                        # n_lag=5001,
-                        # n_lag=4,
-                        # g_radius=1,
-                        g_radius=5,
-                        # g_radius=250,
-                        clust_sig=.02,
-                        input_scale=1,
-                        n_hold=1,
-                        n_out=1,
-                        # loss='mse',
-                        loss='cce',
-                        # optimizer='sgd',
-                        optimizer='rmsprop',
-                        # optimizer='adam',
-                        momentum=0,
-                        # momentum=0.9,
-                        dt=.01,
-                        learning_rate=1e-3,
-                        # learning_rate=2e-3,
-                        # learning_rate=1e-4,
-                        # learning_rate=1e-5,
-                        batch_size=10,
-                        freeze_input=False,
-                        # freeze_input=True,
-                        network='vanilla_rnn',
-                        # network='sompolinsky',
-                        # network='feedforward',
-                        Win=Win,  # todo: refactor code so this can be defined here.
-                        Wrec_rand_proportion=.2,
-                        patience_before_stopping=6000,
-                        # hid_nonlin='relu',
-                        hid_nonlin='tanh',
-                        # hid_nonlin='linear',
-                        # saves_per_epoch=1,
-                        model_seed=0,
-                        rerun=False)
-
-    train_params_lyap = copy.copy(train_params)
-    train_params_lyap['num_epochs'] = 40
-    # lyaps([0], train_params_lyap, [0, 40])
-    train_params_lyap['g_radius'] = 250
-    # lyaps([0], train_params_lyap, [0, 40])
-
-    # train_params['samples_per_epoch'] = 800
-    # batch_size = int(round(train_params['num_train_samples_per_epoch'] * (1 - train_params['perc_val'])))
-    # dim_over_training([0], [1, batch_size], [6, 6 * train_params['samples_per_epoch']], train_params)
-    # dim_over_training([0, 1], [1, batch_size], [40, 40], train_params)
-    # dim_over_training([0,1], [10, 200], [20, 20*train_params['samples_per_epoch']], train_params)
-
-    # activity_visualization(train_params)
-    fn = "dim_over_layers"
-    # dim_over_layers(range(5), [5, 250], train_params, dim_curve_style='before_after', figname=fn)
-    # dim_over_layers([1], [20, 250], train_params, dim_curve_style='before_after', figname=fn)
-    # dim_over_layers(range(5), [250], train_params, dim_curve_style='before_after', figname=fn)
-    dim_over_layers([0,1], [20, 250], train_params, dim_curve_style='before_after', figname=fn)
-    # clust_holdout_over_layers(list(range(5)), [5, 250], train_params, colors=chaos_colors,
-    #                           dim_curve_style='before_after',
-    #                           comparison='before_after', figname="clust_holdout")
-    # acc_and_loss_over_training(train_params, range(5), hue_dictionary={'g_radius': [5, 250]}, hue_target=('g_radius',
-    #                                                                                                       None))
-
-    # tp = train_params.copy()
-    # tp.update({'network': 'feedforward', 'num_epochs': 10, 'X_dim': 200, 'g_radius': 1, 'hid_nonlin': 'relu'})
-    # activity_visualization(tp)
-    # dim_over_layers(range(5), [tp['g_radius']], tp, colors=chaos_colors, dim_curve_style='before_after',
-    #                 comparison='before_after')
-    # clust_holdout_over_layers(list(range(5)), [tp['g_radius']], tp, colors=chaos_colors,
-    #                           dim_curve_style='before_after',
-    #                           comparison='before_after', figname="clust_holdout")
-    # acc_and_loss_over_training(tp, range(5))
-
-    ## Experiments with transfer learning
-    # train_params['pretrain_params'] = dict(model_seed=train_params['model_seed'] + 1, num_epochs=10)
-    # train_params['g_radius'] = 1
-    # acc_and_loss_over_training(train_params, [0], epoch_list=[range(20)], figname="acc_and_loss_g_1")
-    #
-    # train_params['g_radius'] = 250
-    # acc_and_loss_over_training(train_params, [0], epoch_list=[range(20)], figname="acc_and_loss_g_250")

@@ -338,24 +338,24 @@ def median_and_bound(samples, perc_bound, dist_type='gamma', loc=0, shift=0, ref
         if np.isnan(np.sum(median)) or np.isnan(np.sum(interval)):
             return -1
 
-        # if show_fit:
-        #     fig, ax = plt.subplots()
-        #     ax.hist(samples, density=True)
-        #     xx = np.linspace(np.min(samples), np.max(samples))
-        #     if reflect:
-        #         yy_hat = st.gamma.pdf(do_reflect(xx, loc), shape_ps, loc=loc, scale=scale)
-        #         ax.plot(xx, yy_hat)
-        #         ax.axvline(x=median)
-        #         ax.axvline(x=interval[0], linestyle='--')
-        #         ax.axvline(x=interval[1], linestyle='--')
-        #         plt.show()
-        #     else:
-        #         yy_hat = st.gamma.pdf(xx, shape_ps, loc=loc, scale=scale)
-        #         ax.plot(xx, yy_hat)
-        #         ax.axvline(x=median)
-        #         ax.axvline(x=interval[0], linestyle='--')
-        #         ax.axvline(x=interval[1], linestyle='--')
-        #         plt.show()
+        if show_fit:
+            fig, ax = plt.subplots()
+            ax.hist(samples, density=True)
+            xx = np.linspace(np.min(samples), np.max(samples))
+            if reflect:
+                yy_hat = st.gamma.pdf(do_reflect(xx, loc), shape_ps, loc=loc, scale=scale)
+                ax.plot(xx, yy_hat)
+                ax.axvline(x=median)
+                ax.axvline(x=interval[0], linestyle='--')
+                ax.axvline(x=interval[1], linestyle='--')
+                plt.show()
+            else:
+                yy_hat = st.gamma.pdf(xx, shape_ps, loc=loc, scale=scale)
+                ax.plot(xx, yy_hat)
+                ax.axvline(x=median)
+                ax.axvline(x=interval[0], linestyle='--')
+                ax.axvline(x=interval[1], linestyle='--')
+                plt.show()
 
     return median, interval
 
@@ -662,30 +662,19 @@ class CheckConvergence:
         self.memory.append(single_value)
         self.cur_length += 1
 
-        # if len(self.memory) < self.min_length:
-        #     return False
-
         if len(self.memory) < 2:
             return False
 
         mem_d = np.diff(self.memory, axis=0)
-        # change = np.mean(mem_d)
         change = np.sum(mem_d)
 
         if self.tolerance_mode == 'relative':
             increase_bool = change >= self.tolerance * np.mean(np.abs(self.memory))
-            # if verbose:
-            #     print('Above threshold by {}'.format(-avg_change + self.tolerance * np.mean(np.abs(self.memory))))
         else:
             increase_bool = change >= self.tolerance
-            #print(f'change={change}, increase_bool={increase_bool}')
-            # if verbose:
-            #     print('Above threshold by {}'.format(-avg_change + self.tolerance))
 
         if self.cur_length < self.min_length:
             increase_bool = False
-
-        #print(change)
 
         return increase_bool
 

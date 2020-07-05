@@ -1,12 +1,10 @@
 import torch
-import numpy
 from pathlib import Path
 import model_output_manager as mom
 
 import traceback
 import warnings
 import sys
-from typing import *
 
 def warn_with_traceback(message, category, filename, lineno, file=None, line=None):
     log = file if hasattr(file, 'write') else sys.stderr
@@ -186,58 +184,6 @@ def load_model_mom(model, epoch, arg_dict, table_path, compare_exclude=[], optim
     # Todo: use more sophisticated way of choosing the best directory
     return load_model_from_epoch_and_dir(model, run_dir[-1], epoch, 0, optimizer, learning_scheduler)
 
-def smart_load(arg_dict, table_path, stop_num, model, optimizer, learning_scheduler, compare_exclude,
-               require_complete=True):
-    """
-    Check to see if the same model has been trained before. If so, check to see if the number of epochs previously
-    trained is at least as much as needed. Cases are as follows.
-
-    1. The same model has been trained before and is found on disk
-        A. The previously trained model has an output checkpoint that matches the requested stop_epoch.
-           Load the model, optimizer, and learning_scheduler corresponding to stop_num.
-           Return  load_dir, stop_check_num
-        B. The number of check_numbers previously used to train is not as much as the current requested stop_num.
-            Load the model, optimizer, and learning_scheduler corresponding to the highest checkpoint number available (
-            let's call this "max_check_num").
-            Return  load_dir, max_check_num
-    2. The model has not been trained before.
-        Return None, False
-
-    CAUTION: Loading is done by reference, so the passed model, optimizer, and learning_scheduler are modified.
-
-    Returns
-    -------
-    See above
-
-    """
-
-    run_dirs, ids, output_exists = mom.get_dirs_and_ids_for_run(arg_dict, table_path, compare_exclude)
-    if require_complete:
-        run_dirs = [x for x in run_dirs if Path.exists(x/'training_completed_token')]
-
-    if len(run_dirs) == 0:
-        return None, None
-    max_check_num_less_than_stop_num = 0
-    arg_max_check_num_less_than_stop_num = 0
-    for i0, x in enumerate(run_dirs):
-        check_nums = get_check_nums(x)
-        max_less_than_i0 = 0
-        for cn in check_nums:
-            if cn <= stop_num:
-                max_less_than_i0 = max(max_less_than_i0, cn)  # Distance from stop_num to the closest check_num
-        if max_less_than_i0 >= max_check_num_less_than_stop_num:
-            max_check_num_less_than_stop_num = max_less_than_i0
-            arg_max_check_num_less_than_stop_num = i0
-
-    run_dir = run_dirs[arg_max_check_num_less_than_stop_num]
-    check_num = max_check_num_less_than_stop_num
-    exists = load_model_from_epoch_and_dir(model, run_dir, check_num, optimizer,
-                                           learning_scheduler)
-    if exists == -1:
-        return None, None
-
-    return run_dir, check_num
-
 class model_loader:
     def __init__(self, model_template, run_dir):
         # self.run_dir = format_dir(run_dir)
@@ -256,144 +202,3 @@ class model_loader:
             models.append(load_model_from_epoch_and_dir(self.model_template, self.run_dir, el0)[0])
 
         return models
-
-class weight_loader:  # Todo: get it working for multiple saves per epoch
-    def __init__(self, run_dir):
-        # self.run_dir = format_dir(run_dir)
-        self.run_dir = Path(run_dir)
-        self.num_epochs = get_max_epoch(self.run_dir)
-
-    def __len__(self):
-        return self.num_epochs + 1
-
-    def __getitem__(self, idx):
-        w_idx = torch.arange(self.num_epochs + 1)[idx]
-        w_scal = False
-        # if not hasattr(w_idx, '__len__'):
-        try:
-            len(w_idx)
-        except TypeError:
-            w_idx = [w_idx]
-            w_scal = True
-        filename = self.run_dir/'epoch_{}_save_0.pt'.format(w_idx[0])
-        state_info = torch.load(filename)
-        state_dict = state_info['model_state_dict']
-        keys = list(state_dict.keys())
-        w = dict()
-        for key in keys:
-            if w_scal:
-                w[key] = torch.zeros(state_dict[key].shape)
-            else:
-                w[key] = torch.zeros((len(w_idx),) + state_dict[key].shape)
-
-        for i0, el0 in enumerate(w_idx):
-            filename = self.run_dir/'epoch_{}_save_0.pt'.format(el0)
-            state_info = torch.load(filename)
-            state_dict = state_info['model_state_dict']
-            for key in keys:
-                if w_scal:
-                    w[key] = state_dict[key]
-                else:
-                    w[key][i0] = state_dict[key]
-
-        return w
-
-def get_activity(model, run_dir, inputs, layer_idx, epoch_idx, save_idx=0, return_as_Tensor=False, detach=True):
-    """
-    Gets the hidden unit activations of model in response to inputs at the savepoints specified by save_idx.
-
-    Parameters
-    ----------
-    model : torch.nn.Module
-        The model from which to get the hidden unit activations
-    run_dir : Union[str, Path]
-        Directory where the states of the network through training are saved
-    inputs : torch.Tensor
-        The inputs to give to the model
-    layer_idx : Union[int, list, tuple, slice]
-        Indices for the layers
-    epoch_idx : Union[int, list, tuple, slice]
-        Indices for the saves
-    return_as_Tensor : bool
-        If True, the return data will be attempted to be returned as a pytorch Tensor. This only works if the
-        number of units in each of the layers specified by layer_idx are the same.
-    detach : bool
-        If True, then the return data will be detached from the torch compute graph. This should be True unless
-        gradients are needed.
-
-    Returns
-    -------
-    Union[List[List[torch.Tensor]], torch.Tensor]
-        If return_as_Tensor is False, then the returned data structure has the form List[List[torch.Tensor]]. The
-        first list index corresponds to the saves, the second list index corresponds to the layer,
-        and the torch.Tensor object is the response of corresponding layer at the corresponding save (its size is
-        determined by the network model).
-
-
-    """
-    model.eval()  # Needed to make sure batch normalization and dropout aren't activated
-    if layer_idx is None:
-        layer_idx = slice(None)
-
-    def identity(x):
-        return x
-
-    # Here we define layer_stack_fun, which will either stack things or not depending on return_as_Tensor.
-    if return_as_Tensor:
-        layer_stack_fun = torch.stack
-    else:
-        layer_stack_fun = identity
-    # We need to take care of three cases (1) layer_idx is an int, (2) layer_idx is a list or tuple, (3) layer_idx is a
-    # slice object. Based on this, we define a handler function index_fun.
-    if isinstance(layer_idx, int):  # (1)
-        def index_fun(data, idx):
-            return data[idx]
-    elif hasattr(layer_idx, '__len__'):  # (2)
-        def index_fun(data, idx):
-            return layer_stack_fun([data[x] for x in idx])
-    elif isinstance(layer_idx, slice):  # (3)
-        def index_fun(data, idx):
-            return layer_stack_fun(data[idx])
-    else:
-        raise AttributeError("layer_idx does not have a valid type.")
-
-    num_epochs, num_saves = get_max_epoch_and_save(run_dir)
-
-    # Now we need to take care of these three cases for epoch_idx. However, this time the case is slightly different
-    # as we will need to find the maximum epoch on disk, and then loop over the appropriate epoch values.
-    epochs = range(num_epochs + 1)
-    scal_epochs = isinstance(epoch_idx, int)
-    if hasattr(epoch_idx, '__len__'):
-        epoch_idx = [epochs[k] for k in epoch_idx]
-    else:
-        epoch_idx = list(epochs)[epoch_idx]
-    if scal_epochs:
-        epoch_idx = [epoch_idx]
-
-    # Same for saves
-    saves = range(num_saves + 1)
-    scal_saves = isinstance(save_idx, int)
-    if hasattr(save_idx, '__len__'):
-        save_idx = [saves[k] for k in save_idx]
-    else:
-        save_idx = list(saves)[save_idx]
-    if scal_saves:
-        save_idx = [save_idx]
-    acts = []
-    for idx in epoch_idx:
-        acts.append([])
-        for save_id in save_idx:
-            # acts[-1].append([])
-            load_model_from_epoch_and_dir(model, run_dir, idx, save_id)
-            # print(model.training)
-            act = model.get_activations(inputs, detach)
-            act = index_fun(act, layer_idx)
-            acts[-1].append(act)
-            # breakpoint()
-        if scal_saves:
-            acts[-1] = acts[-1][0]
-    if scal_epochs:
-        return acts[0]
-    if return_as_Tensor:
-        return torch.stack(acts)
-    return acts

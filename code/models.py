@@ -2,7 +2,6 @@ from typing import Union, List, Callable, Optional
 import torch
 from torch import Tensor
 from torch import nn
-import math
 
 class FeedForward(nn.Module):
     """
@@ -80,82 +79,6 @@ class FeedForward(nn.Module):
                 activations.append(detacher(pre_activation))
                 activations.append(detacher(hid))
             return activations
-
-class DenseRandomFF(FeedForward):
-    """
-    Feedforward net. Weights are initialized according to two
-    factors: how close to an "identity" matrix the weights are, and a gain factor. Biases are initialized to zero.
-    """
-
-    def __init__(self, input_dim: int, hidden_dims: Union[int, List[int]], output_dim: int, num_layers: int,
-                 pert_factor: float = 1., gain_factor: float = 0.4, nonlinearity: Union[str, Callable] = 'relu',
-                 normalize: bool = True):
-
-        if isinstance(nonlinearity, Callable):
-            self.nonlinearity = nonlinearity
-        elif isinstance(nonlinearity, str):
-            if nonlinearity == 'tanh' or nonlinearity == 'Tanh':
-                self.nonlinearity = torch.tanh
-            elif nonlinearity == 'relu' or nonlinearity == 'ReLU':
-                def relu(x):
-                    return torch.clamp(x, min=0)
-
-                self.nonlinearity = relu
-            else:
-                raise AttributeError("nonlinearity not recognized.")
-        else:
-            raise AttributeError("nonlinearity not recognized.")
-
-        layer_weights = []
-        nonlinearities = []
-        biases = []
-
-        if not hasattr(hidden_dims, '__len__'):
-            N = hidden_dims
-            hidden_dims = [N for x in range(num_layers)]
-        else:
-            if len(hidden_dims) != num_layers:
-                raise ValueError("Length of hidden_dims does not match num_layers")
-
-        # input weights
-        input_w_id = torch.eye(input_dim, hidden_dims[0])
-        if normalize:
-            input_w_random = gain_factor*torch.randn(input_dim, hidden_dims[0])/math.sqrt(input_dim)
-        else:
-            input_w_random = gain_factor*torch.randn(input_dim, hidden_dims[0])
-
-        input_w = (1 - pert_factor)*input_w_id + pert_factor*input_w_random
-        layer_weights.append(input_w)
-        nonlinearities.append(self.nonlinearity)
-        biases.append(torch.zeros(hidden_dims[0]))
-
-        # hidden layer weights
-        for i0 in range(num_layers - 1):
-            hidden_w_id = torch.eye(hidden_dims[0], hidden_dims[1])
-            if normalize:
-                hidden_w_random = gain_factor*torch.randn(hidden_dims[i0], hidden_dims[i0 + 1])/math.sqrt(
-                    hidden_dims[i0])
-            else:
-                hidden_w_random = gain_factor*torch.randn(hidden_dims[i0], hidden_dims[i0 + 1])
-
-            hidden_w = (1 - pert_factor)*hidden_w_id + pert_factor*hidden_w_random
-            layer_weights.append(hidden_w)
-            nonlinearities.append(self.nonlinearity)
-            biases.append(torch.zeros(hidden_dims[i0 + 1]))
-
-        # output layer weights
-        output_w_id = torch.eye(hidden_dims[-1], output_dim)
-        if normalize:
-            output_w_random = gain_factor*torch.randn(hidden_dims[-1], output_dim)/math.sqrt(hidden_dims[-1])
-        else:
-            output_w_random = gain_factor*torch.randn(hidden_dims[-1], output_dim)
-
-        output_w = (1 - pert_factor)*output_w_id + pert_factor*output_w_random
-        layer_weights.append(output_w)
-        nonlinearities.append(self.nonlinearity)
-        biases.append(torch.zeros(output_dim))
-
-        super().__init__(layer_weights, biases, nonlinearities)
 
 # noinspection PyArgumentList
 class RNN(nn.Module):
@@ -310,65 +233,9 @@ class RNN(nn.Module):
         activations.append(out.detach())
         return activations
 
-class StaticInputRNN(RNN):
-
-    def forward(self, inputs: Tensor, num_recurrent_steps):
-        hid = self.hidden_unit_init
-        preactivation = hid@self.Wrec_T + inputs@self.Win_T + self.brec
-        hid = self.nonlinearity(preactivation)
-        for i0 in range(num_recurrent_steps - 1):
-            preactivation = hid@self.Wrec_T + self.brec
-            hid = self.nonlinearity(preactivation)
-        out = hid@self.Wout_T + self.bout
-        return out
-
-    def get_pre_activations(self, inputs: Tensor, num_recurrent_steps):
-        hid = self.hidden_unit_init
-        preactivations = []
-        preactivation = hid@self.Wrec_T + inputs@self.Win_T + self.brec
-        hid = self.nonlinearity(preactivation)
-        preactivations.append(preactivation.detach())
-        for i0 in range(num_recurrent_steps - 1):
-            preactivation = hid@self.Wrec_T + self.brec
-            hid = self.nonlinearity(preactivation)
-            preactivations.append(preactivation.detach())
-        out = hid@self.Wout_T + self.bout
-        preactivations.append(out.detach())
-        return preactivations
-
-    def get_post_activation(self, inputs: Tensor, num_recurrent_steps):
-        hid = self.hidden_unit_init
-        postactivations = []
-        preactivation = hid@self.Wrec_T + inputs@self.Win_T + self.brec
-        hid = self.nonlinearity(preactivation)
-        postactivations.append(hid.detach())
-        for i0 in range(num_recurrent_steps - 1):
-            preactivation = hid@self.Wrec_T + self.brec
-            hid = self.nonlinearity(preactivation)
-            postactivations.append(hid.detach())
-        out = hid@self.Wout_T + self.bout
-        postactivations.append(out.detach())
-        return postactivations
-
-    def get_activations(self, inputs: Tensor, num_recurrent_steps):
-        hid = self.hidden_unit_init
-        activations = []
-        preactivation = hid@self.Wrec_T + inputs@self.Win_T + self.brec
-        hid = self.nonlinearity(preactivation)
-        activations.append(preactivation.detach())
-        activations.append(hid.detach())
-        for i0 in range(num_recurrent_steps - 1):
-            preactivation = hid@self.Wrec_T + self.brec
-            hid = self.nonlinearity(preactivation)
-            activations.append(preactivation.detach())
-            activations.append(hid.detach())
-        out = hid@self.Wout_T + self.bout
-        activations.append(out.detach())
-        return activations
-
 class SompolinskyRNN(RNN):
     """
-    Recurrent Neural Network (RNN) with Haim Sompolinsky style dynamics:
+    Recurrent Neural Network (RNN) with style dynamics as used in Sompolinsky et al. 1988:
 
     h' = -h + nonlinearity(h)@Wrec + input@Win + recurrent_bias.
 

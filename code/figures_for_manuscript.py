@@ -3,8 +3,8 @@
 
 # %% Setting up the options and parameters
 
-FAST_RUN = False # Takes about 40 minutes
-# FAST_RUN = True  # Takes about 8 minutes
+# FAST_RUN = False # Takes about 40 minutes
+FAST_RUN = True  # Takes about 8 minutes
 
 CLEAR_PREVIOUS_RUNS = False
 # CLEAR_PREVIOUS_RUNS = True # Delete saved weights from previous runs
@@ -22,12 +22,12 @@ if CLEAR_PREVIOUS_RUNS:
 
 # See initialize_and_train.initialize_and_train for a description of these parameters.
 high_d_input_edge_of_chaos_params = dict(N=200,
-                                         num_epochs=70,
+                                         num_epochs=40,
                                          num_train_samples_per_epoch=800,
                                          X_clusters=60,
                                          X_dim=200,
                                          num_classes=2,
-                                         n_lag=11,
+                                         n_lag=10,
                                          g_radius=5,
                                          clust_sig=.02,
                                          input_scale=1,
@@ -46,17 +46,17 @@ high_d_input_edge_of_chaos_params = dict(N=200,
                                          patience_before_stopping=6000,
                                          hid_nonlin='tanh',
                                          model_seed=0,
-                                         rerun=False)
+                                         rerun=True)
 
 high_d_input_strongly_chaotic_params = high_d_input_edge_of_chaos_params.copy()
 high_d_input_strongly_chaotic_params['g_radius'] = 250
 low_d_input_edge_of_chaos_params = high_d_input_edge_of_chaos_params.copy()
 low_d_input_edge_of_chaos_params['X_dim'] = 2
-low_d_input_edge_of_chaos_params['num_epochs'] = 150
+low_d_input_edge_of_chaos_params['num_epochs'] = 60
 low_d_input_strongly_chaotic_params = high_d_input_edge_of_chaos_params.copy()
 low_d_input_strongly_chaotic_params['g_radius'] = 250
 low_d_input_strongly_chaotic_params['X_dim'] = 2
-low_d_input_strongly_chaotic_params['num_epochs'] = 150
+low_d_input_strongly_chaotic_params['num_epochs'] = 60
 
 # %% Calls to plotting functions
 
@@ -76,11 +76,11 @@ plots.snapshots_through_time(high_d_input_strongly_chaotic_params)
 hue_dictionary = {'g_radius': [20, 250]}
 hue_target = ('g_radius', None)
 acc_and_loss_params = high_d_input_edge_of_chaos_params.copy()
-acc_and_loss_params['num_epochs'] = 15
+acc_and_loss_params['num_epochs'] = 10
 acc_and_loss_params['num_train_samples_per_epoch'] = 400
 epoch = list(range(16))
-plots.acc_and_loss_over_training(acc_and_loss_params, seeds, hue_dictionary, hue_target, epoch_list=epoch,
-                                 epoch_plot=epoch)
+plots.acc_and_loss_over_training(acc_and_loss_params, seeds, epochs=epoch, hue_dictionary=hue_dictionary,
+                                 hue_legend_key=hue_target)
 #
 # # %% Figure 1e
 plots.dim_over_layers(seeds, [20, 250], high_d_input_edge_of_chaos_params)
@@ -105,13 +105,10 @@ plots.snapshots_through_time(low_d_input_strongly_chaotic_params)
 hue_dictionary = {'g_radius': [20, 250]}
 hue_target = ('g_radius', None)
 acc_and_loss_params = low_d_input_edge_of_chaos_params.copy()
-# acc_and_loss_params['num_epochs'] = 60
-# acc_and_loss_params['num_train_samples_per_epoch'] = 800
-# epochs = list(range(1))
-# epochs = list(range(0, 51, 1))
-epochs = list(range(0, 151, 1))
-# plots.acc_and_loss_over_training(acc_and_loss_params, seeds, hue_dictionary, hue_target, epoch_list=epochs,
-#                                  epoch_plot=epochs)
+tot_epochs = acc_and_loss_params['num_epochs']
+epochs = list(range(0, tot_epochs, 1))
+plots.acc_and_loss_over_training(acc_and_loss_params, seeds, epochs=epochs, hue_dictionary=hue_dictionary,
+                                 hue_legend_key=hue_target)
 
 # %% Figure 2e
 plots.dim_over_layers(seeds, [20, 250], low_d_input_edge_of_chaos_params)
@@ -140,9 +137,10 @@ plots.snapshots_through_time(low_d_2n_input_strongly_chaotic_params)
 hue_dictionary = {'g_radius': [20, 250]}
 hue_target = ('g_radius', None)
 acc_and_loss_params = low_d_2n_input_edge_of_chaos_params.copy()
-epochs = list(range(151))
-plots.acc_and_loss_over_training(acc_and_loss_params, seeds, hue_dictionary, hue_target, epoch_list=epochs,
-                                 epoch_plot=epochs)
+tot_epochs = acc_and_loss_params['num_epochs']
+epochs = list(range(0, tot_epochs, 1))
+plots.acc_and_loss_over_training(acc_and_loss_params, seeds, epochs=epochs, hue_dictionary=hue_dictionary,
+                                 hue_legend_key=hue_target)
 
 # %% Figure 3e
 plots.dim_over_layers(seeds, [20, 250], low_d_2n_input_edge_of_chaos_params)

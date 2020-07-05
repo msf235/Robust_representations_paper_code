@@ -1,4 +1,3 @@
-import sys
 import os
 import autograd.numpy as np # Need this for autograd fanciness.
 # import numpy as np
@@ -26,21 +25,10 @@ def phiPrime(x):
 
 def oneStep(h, W, b, x, Win=0, phi=phi):
     """one step evolution of RNN (without input or output). Assumes dt=1."""
-    # return phi(W.dot(h) + np.dot(Win, x) + b)
     return phi(h @ W.T + x @ Win.T + b)
-
-# def oneStepVar(x, Y, W, b, phiPrime=phiPrime):
-#     """one step evolution of associated variational equation (without input or output). Assumes dt=1"""
-#     # v = phiPrime(W.dot(x) + b)
-#     # A = np.multiply(v, W.T).T
-#     v = phiPrime(W.dot(x) + Win.dot(x) + b)
-#     A = np.multiply(v, W.T).T
-#     return A.dot(Y)
 
 def oneStepVar(h, Y, W, b, Win=0, x=0, phiPrime=phiPrime):
     """one step evolution of associated variational equation (without input or output). Assumes dt=1"""
-    # v = phiPrime(W.dot(x) + b)
-    # A = np.multiply(v, W.T).T
     v = phiPrime(W.dot(h) + np.dot(Win, x) + b)
     A = np.multiply(v, W.T).T
     return A.dot(Y)
@@ -74,37 +62,10 @@ def net_f_auton_jacob(h, Wrec, b, Win=0, x=0, phiPrime=phiPrime):
     A = -np.eye(N) + np.multiply(v, Wrec).T
     return A
 
-# I = np.eye(N)
-#
-#
-# def gp(x):
-#     return np.cos(x) ** (-2)
-#
-#
-# def jac_f(h):
-#     return -I + np.dot(gp(np.dot(h, Wrec) + b), Wrec.T)
-
-
-# %% Functions needed for LE compute
-
-
-# def oneStepVarQR(x, Q, W, b, phiPrime=phiPrime):
-#     """one step variational equation with QR decomposition"""
-#     v = phiPrime(W.dot(x) + b)
-#     A = np.multiply(v, W.T).T  # This is equivalent to (np.diag(v) @ W.T).T
-#     Z = A.dot(Q)
-#     q, r = np.linalg.qr(Z, mode='complete')
-#     q = q[:, :k_LE]
-#     s = np.diag(np.sign(np.diag(r)))
-#     return q.dot(s), np.diag(r.dot(s))
-
 def oneStepVarQR(h, Q, W, b, Win=0, x=0, phiPrime=phiPrime, k_LE=None):
     """one step variational equation with QR decomposition"""
     if k_LE is None:
         k_LE = len(h)
-    # v = phiPrime(W.dot(x) + b)
-    # A = np.multiply(v, W.T).T  # This is equivalent to (np.diag(v) @ W.T).T
-    # Z = A.dot(Q)
     Z = oneStepVar(h, Q, W, b, Win, x, phiPrime=phiPrime)
     q, r = np.linalg.qr(Z, mode='complete')
     q = q[:, :k_LE]
@@ -142,8 +103,6 @@ def getSpectrum(W, b, Win=0, x=0, k_LE=None, max_iters=1000, tol=1e-3, max_ICs=1
     IC_cnt = 0
 
     traj = np.zeros((max_ICs, max_iters + 1, W.shape[0]))
-    # if return_traj is False:
-    #     traj = None
 
     if ICs is None:
         ICs = np.random.uniform(-.2, .2, (max_iters, W.shape[0]))
@@ -172,26 +131,21 @@ def getSpectrum(W, b, Win=0, x=0, k_LE=None, max_iters=1000, tol=1e-3, max_ICs=1
             Q, r = oneStepVarQR(h, Q, W, b, Win, x, k_LE=k_LE)
             running_log_sum += np.log2(r)
             converge_bool = iter_cc.check_convergence(running_log_sum / it, comparison_mode='sem')
-            # print(running_log_sum / it)
-            # print(converge_bool)
         if converge_bool:
-            print("Lyapunov spectrum for this IC converged.")
+            print("Lyapunov spectrum for this initial condition converged.")
         else:
             print("Warning: Lyapunov spectrum for this IC did not converge.")
         LEs = running_log_sum / it
         specs.append(LEs)  # save spectrum
         IC_cnt += 1  # initial condition counter
         sem_converge_bool, sem = IC_cc.check_convergence(LEs, comparison_mode='sem', ret_dev=True)
-        # if IC_cnt > 1: sem = np.mean(np.std(np.vstack(specs), axis=0)) / np.sqrt(IC_cnt)
         sems.append(sem)
-        if verbose: print('%d/%d, SEM:%.5f' % (IC_cnt, max_ICs, sem))
-
-    print('standard error: %.5f' % sem)
+        if verbose: print('%d/%d, SEM over initial conditions:%.5f' % (IC_cnt, max_ICs, sem))
 
     return np.mean(specs, axis=0), sem, traj
 
 if __name__ == '__main__':
-    # %% Test out the jacobians
+    # %% Test out our expression for the Jacobian
     import autograd
 
     def gen_net_f_auton_jac(h, Wrec, b, Win=0, x=0, phi=phi):
