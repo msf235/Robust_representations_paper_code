@@ -10,7 +10,7 @@ import model_output_manager as mom
 import models
 import model_trainer
 
-TABLE_PATH = 'output_test/output_table.csv'
+TABLE_PATH = 'output/output_table.csv'
 
 def get_max_eigval(A):
     ew, __ = torch.eig(A)
@@ -245,9 +245,10 @@ def initialize_and_train(N, X_clusters, n_lag, n_hold, n_out, X_dim, num_classes
     brec = torch.zeros(N)
     bout = torch.zeros(num_classes)
     J = torch.randn(N, N)/math.sqrt(N)
-    top_ew = get_max_eigval(J)[0]
-    top_ew_mag = torch.sqrt(top_ew[0]**2 + top_ew[1]**2)
-    J_scaled = g_radius*(J/top_ew_mag)
+    # top_ew = get_max_eigval(J)[0]
+    # top_ew_mag = torch.sqrt(top_ew[0]**2 + top_ew[1]**2)
+    # J_scaled = g_radius*(J/top_ew_mag)
+    J_scaled = g_radius*J
     if network in ('somp', 'sompolinsky', 'sompolinskyrnn'):
         Q = torch.nn.init.orthogonal_(torch.empty(N, N))
         Q_scaled = g_radius*Q

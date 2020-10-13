@@ -21,6 +21,8 @@ import utils
 # implemented in this code. The commented out code is for using a gamma distribution to compute these, but uses a
 # custom version of seaborn plotting library to plot.
 
+USE_ERRORBARS = True
+
 # def ci_acc(vals):
 #     median, bounds = median_and_bound(vals, perc_bound=0.75, loc=1., shift=-.0001,
 #                                       reflect=True)
@@ -158,7 +160,7 @@ def out_fig(fig, name, train_params, subfolder='', show=False, save=True, axis_t
         with open(folder + subfolder + 'data/Xdim_{}_{}_data'.format(X_dim, name), 'wb') as fid:
             pkl.dump(data, fid, protocol=4)
 
-def snapshots_through_time(train_params):
+def snapshots_through_time(train_params, subdir_name="snaps/"):
     """
     Plot PCA snapshots of the representation through time.
 
@@ -170,7 +172,7 @@ def snapshots_through_time(train_params):
     """
     X_dim = train_params['X_dim']
     FEEDFORWARD = train_params['network'] == 'feedforward'
-    SUBFOLDER = train_params['network'] + '/' + 'activity_visualization/' + train_params['hid_nonlin'] + '/'
+    SUBFOLDER = train_params['network'] + '/'
 
     num_pnts_dim_red = 800
     num_plot = 600
@@ -278,23 +280,13 @@ def snapshots_through_time(train_params):
                 ax.set_zlim([ym - .1*max_extent, yM + .1*max_extent])
 
         if dim == 3:
-            if border:
-                out_fig(fig, "snapshot_{}".format(i0), train_params_loc,
-                        subfolder=SUBFOLDER + "snaps_3d/border/", axis_type=0,
-                        name_order=1)
-            else:
-                out_fig(fig, "snapshot_{}".format(i0), train_params_loc,
-                        subfolder=SUBFOLDER + "snaps_3d/no_border/", axis_type=2,
-                        name_order=1)
+            out_fig(fig, "snapshot_{}".format(i0-1), train_params_loc,
+                    subfolder=SUBFOLDER + subdir_name + '/', axis_type=2,
+                    name_order=1)
         else:
-            if border:
-                out_fig(fig, "snapshot_{}".format(i0), train_params_loc,
-                        subfolder=SUBFOLDER + "snaps/border/", axis_type=0,
-                        name_order=1)
-            else:
-                out_fig(fig, "snapshot_{}".format(i0), train_params_loc,
-                        subfolder=SUBFOLDER + "snaps/no_border/", axis_type=2,
-                        name_order=1)
+            out_fig(fig, "snapshot_{}".format(i0-1), train_params_loc,
+                    subfolder=SUBFOLDER + subdir_name + '/', axis_type=2,
+                    name_order=1)
         return scat,
 
     dim = 2
@@ -313,9 +305,9 @@ def snapshots_through_time(train_params):
                       edgecolors=edge_coloring, s=10, linewidths=.65)
 
     if FEEDFORWARD:
-        snap_idx = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+        snap_idx = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
     else:
-        snap_idx = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30])
+        snap_idx = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 16, 21, 26, 31])
     for i0 in snap_idx:
         take_snap(i0, scat, dim=dim, border=False)
 
@@ -348,11 +340,12 @@ def acc_and_loss_over_training(train_params, seeds, epochs, hue_dictionary=None,
     """
     if figname is None:
         figname = 'acc_and_loss_over_training'
+    if hue_legend_key is None:
+        hue_legend_key = list(hue_dictionary.keys())[0]
 
     def generate_data_table(train_params, seeds, hue_dictionary, hue_legend_key, epochs):
         train_params_loc = copy.copy(train_params)
-        spe = train_params_loc['num_train_samples_per_epoch']
-        NUM_SAMPLES = 100
+        NUM_SAMPLES = 1000
         spe = train_params_loc['num_train_samples_per_epoch']
         FEEDFORWARD = train_params_loc['network'] == 'feedforward'
 
@@ -366,8 +359,6 @@ def acc_and_loss_over_training(train_params, seeds, epochs, hue_dictionary=None,
             hue_keys = list(hue_dictionary.keys())
             loss_and_acc_table = pd.DataFrame(columns=['seed', 'num_training_samples', 'accuracy', hue_legend_key])
             num_hues = len(hue_dictionary[hue_keys[0]])
-            if hue_legend_key is None:
-                hue_legend_key = hue_keys[0]
 
         for hue_idx in range(num_hues):
             for key in hue_keys:
@@ -418,8 +409,12 @@ def acc_and_loss_over_training(train_params, seeds, epochs, hue_dictionary=None,
     loss_and_acc_table = generate_data_table(train_params, seeds, hue_dictionary, hue_legend_key, epochs)
 
     fig, ax = utils.make_fig(figsize)
-    g = sns.lineplot(ax=ax, x='num_training_samples', y='accuracy', data=loss_and_acc_table, hue=hue_legend_key,
-                     estimator=est_acc, ci=ci_acc)
+    if USE_ERRORBARS:
+        g = sns.lineplot(ax=ax, x='num_training_samples', y='accuracy', data=loss_and_acc_table, hue=hue_legend_key,
+                         estimator=est_acc, ci=ci_acc)
+    else:
+        g = sns.lineplot(ax=ax, x='num_training_samples', y='accuracy', data=loss_and_acc_table, hue=hue_legend_key,
+                         estimator=None, units='seed')
     # if g.legend_ is not None:
     #     g.legend_.remove()
     out_fig(fig, figname, train_params, subfolder=train_params['network'] + '/acc_and_loss_over_training/',
@@ -476,15 +471,11 @@ def clust_holdout_over_layers(seeds, gs, train_params, figname="clust_holdout_ov
     """
     if not hasattr(gs, '__len__'):
         gs = [gs]
-    g_str = ''
-    for g in gs:
-        g_str = g_str + '_' + str(g)
-    g_str = g_str[1:]
     layer_label = 'layer'
 
     def generate_data_table(seeds, gs, train_params):
         layer_label = 'layer'
-        clust_acc_table = pd.DataFrame(columns=['seed', 'g', 'training', layer_label, 'LR training', 'LR testing'])
+        clust_acc_table = pd.DataFrame(columns=['seed', 'g_radius', 'training', layer_label, 'LR training', 'LR testing'])
 
         train_params_loc = copy.deepcopy(train_params)
 
@@ -518,13 +509,13 @@ def clust_holdout_over_layers(seeds, gs, train_params, figname="clust_holdout_ov
                     ds = []
                     for lay, h in enumerate(hid):
                         stat = _cluster_holdout_test_acc_stat_fun(h.numpy(), Y.numpy(), cluster_identity)
-                        ds.extend([{'seed': seed, 'g': g, 'training': epoch_label, layer_label: lay, 'LR training':
+                        ds.extend([{'seed': seed, 'g_radius': g, 'training': epoch_label, layer_label: lay, 'LR training':
                             stat[0][k], 'LR testing': stat[1][k]} for k in range(len(stat[0]))])
 
                     clust_acc_table = clust_acc_table.append(pd.DataFrame(ds), ignore_index=True)
 
         clust_acc_table['seed'] = clust_acc_table['seed'].astype('category')
-        clust_acc_table['g'] = clust_acc_table['g'].astype('category')
+        clust_acc_table['g_radius'] = clust_acc_table['g_radius'].astype('category')
         clust_acc_table['training'] = clust_acc_table['training'].astype('category')
         return clust_acc_table
 
@@ -537,8 +528,12 @@ def clust_holdout_over_layers(seeds, gs, train_params, figname="clust_holdout_ov
         else:
             clust_acc_table_stage = clust_acc_table.drop(columns=['LR training'])
         fig, ax = make_fig((1.5, 1.2))
-        g = sns.lineplot(ax=ax, x=layer_label, y=stage, data=clust_acc_table_stage, estimator=est_acc,
-                         ci=ci_acc, style='training', hue='g')
+        if USE_ERRORBARS:
+            g = sns.lineplot(ax=ax, x=layer_label, y=stage, data=clust_acc_table_stage, estimator=est_acc,
+                             ci=ci_acc, style='training', style_order=['after', 'before'], hue='g_radius')
+        else:
+            g = sns.lineplot(ax=ax, x=layer_label, y=stage, data=clust_acc_table_stage, estimator=None,
+                             units='seed', style='training', style_order=['after', 'before'], hue='g_radius')
         # if g.legend_ is not None:
         #     g.legend_.remove()
         ax.set_ylim([-.01, 1.01])
@@ -571,15 +566,11 @@ def dim_over_layers(seeds, gs, train_params, figname="dim_over_layers", T=0):
     """
     if not hasattr(gs, '__len__'):
         gs = [gs]
-    g_str = ''
-    for g in gs:
-        g_str = g_str + '_' + str(g)
-    g_str = g_str[1:]
     stat_key = 'dim'
     layer_label = 'layer'
 
     train_params_loc = copy.deepcopy(train_params)
-    dim_table = pd.DataFrame(columns=['seed', 'g', 'training', layer_label, stat_key])
+    dim_table = pd.DataFrame(columns=['seed', 'g_radius', 'training', layer_label, stat_key])
 
     for i0, seed in enumerate(seeds):
         for i1, g in enumerate(gs):
@@ -610,21 +601,25 @@ def dim_over_layers(seeds, gs, train_params, figname="dim_over_layers", T=0):
                 if len(Y.shape) > 1:
                     Y = Y[:, -1]
                 stats = [utils.get_effdim(h, False).item() for h in hid]
-                ds = {'seed': seed, 'g': g, 'training': epoch_label, layer_label: list(range(len(hid))),
+                ds = {'seed': seed, 'g_radius': g, 'training': epoch_label, layer_label: list(range(len(hid))),
                       stat_key: stats}
                 dim_table = dim_table.append(pd.DataFrame(ds), ignore_index=True)
 
     dim_table['seed'] = dim_table['seed'].astype('category')
-    dim_table['g'] = dim_table['g'].astype('category')
+    dim_table['g_radius'] = dim_table['g_radius'].astype('category')
     dim_table['training'] = dim_table['training'].astype('category')
     layers = set(dim_table[layer_label])
 
     fig, ax = make_fig((1.5, 1.2))
-    g = sns.lineplot(ax=ax, x=layer_label, y=stat_key, data=dim_table, estimator=est_dim,
-                     ci=ci_dim, style='training', style_order=['after', 'before'], hue='g')
-    if g.legend_ is not None:
-        g.legend_.remove()
-    fig.show()
+    if USE_ERRORBARS:
+        g = sns.lineplot(ax=ax, x=layer_label, y=stat_key, data=dim_table, estimator=est_dim,
+                         ci=ci_dim, style='training', style_order=['after', 'before'], hue='g_radius')
+    else:
+        g = sns.lineplot(ax=ax, x=layer_label, y=stat_key, data=dim_table, estimator=None,
+                         style='training', style_order=['after', 'before'], hue='g_radius',
+                         units='seed')
+    # if g.legend_ is not None:
+    #     g.legend_.remove()
     ax.set_xticks(range(len(layers)))
     out_fig(fig, figname, train_params_loc, subfolder=train_params_loc['network'] + '/dim_over_layer/',
             show=False, save=True, axis_type=0, data=dim_table)
