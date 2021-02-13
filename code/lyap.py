@@ -1,6 +1,6 @@
 import os
 # import autograd.numpy as np # Need this for autograd fanciness.
-# import numpy as np
+import numpy as np
 from joblib import Memory
 import utils
 
