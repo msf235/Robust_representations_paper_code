@@ -27,23 +27,24 @@ USE_ERRORBARS = True
 #     median, bounds = median_and_bound(vals, perc_bound=0.75, loc=1., shift=-.0001,
 #                                       reflect=True)
 #     return bounds[1], bounds[0]
-
-ci_acc = 95
+#
+ci_acc = 70
 # def est_acc(vals):
 #     median, bounds = median_and_bound(vals, perc_bound=0.75, loc=1., shift=-.0001,
 #                                       reflect=True)
 #     return median
 est_acc = "mean"
+# est_acc = "median"
 
-# def ci_dim(vals):
-#     median, bounds = median_and_bound(vals, perc_bound=0.75, loc=1)
-#     return bounds[1], bounds[0]
-ci_dim = 95
+def ci_dim(vals):
+    median, bounds = median_and_bound(vals, perc_bound=0.75, loc=1)
+    return bounds[1], bounds[0]
+# ci_dim = 95
 
-# def est_dim(vals):
-#     median, bounds = median_and_bound(vals, perc_bound=0.75, loc=1)
-#     return median
-est_dim = "mean"
+def est_dim(vals):
+    median, bounds = median_and_bound(vals, perc_bound=0.75, loc=1)
+    return median
+# est_dim = "mean"
 
 def point_replace(a_string):
     a_string = str(a_string)
@@ -311,7 +312,8 @@ def snapshots_through_time(train_params, subdir_name="snaps/"):
     for i0 in snap_idx:
         take_snap(i0, scat, dim=dim, border=False)
 
-def acc_and_loss_over_training(train_params, seeds, epochs, hue_dictionary=None, hue_legend_key=None, figname=None):
+def acc_and_loss_over_training(train_params, seeds, epochs, hue_dictionary=None, hue_legend_key=None, figname=None,
+                               **plot_kwargs):
     """
     Plot accuracy over training. hue_dictionary is an optional dictionary with a single entry that allows you to
     specify a parameter for which to plot multiple lines with different hues on the same plot.
@@ -411,12 +413,12 @@ def acc_and_loss_over_training(train_params, seeds, epochs, hue_dictionary=None,
     fig, ax = utils.make_fig(figsize)
     if USE_ERRORBARS:
         g = sns.lineplot(ax=ax, x='num_training_samples', y='accuracy', data=loss_and_acc_table, hue=hue_legend_key,
-                         estimator=est_acc, ci=ci_acc)
+                         estimator=est_acc, ci=ci_acc, **plot_kwargs)
     else:
         g = sns.lineplot(ax=ax, x='num_training_samples', y='accuracy', data=loss_and_acc_table, hue=hue_legend_key,
-                         estimator=None, units='seed')
-    # if g.legend_ is not None:
-    #     g.legend_.remove()
+                         estimator=None, units='seed', **plot_kwargs)
+    if g.legend_ is not None:
+        g.legend_.remove()
     out_fig(fig, figname, train_params, subfolder=train_params['network'] + '/acc_and_loss_over_training/',
             data=loss_and_acc_table)
 
@@ -451,7 +453,8 @@ def _cluster_holdout_test_acc_stat_fun(h, y, clust_identity, classifier_type='lo
 
     return train_accs, test_accs
 
-def clust_holdout_over_layers(seeds, gs, train_params, figname="clust_holdout_over_layers"):
+def clust_holdout_over_layers(seeds, gs, train_params, figname="clust_holdout_over_layers",
+                              **plot_kwargs):
     """
     Logistic regression training and testing error on the representation through the layers. Compares networks trained
     with different choices of g_radius (specified by input parameter gs).
@@ -529,13 +532,23 @@ def clust_holdout_over_layers(seeds, gs, train_params, figname="clust_holdout_ov
             clust_acc_table_stage = clust_acc_table.drop(columns=['LR training'])
         fig, ax = make_fig((1.5, 1.2))
         if USE_ERRORBARS:
-            g = sns.lineplot(ax=ax, x=layer_label, y=stage, data=clust_acc_table_stage, estimator=est_acc,
-                             ci=ci_acc, style='training', style_order=['after', 'before'], hue='g_radius')
+            table = clust_acc_table_stage.copy()
+            table = table[table['training'] == 'after']
+            g = sns.lineplot(ax=ax, x=layer_label, y=stage, data=table, estimator=est_acc,
+                             ci=ci_acc, hue='g_radius', **plot_kwargs)
+            # table = table.drop(columns=['training'])
+            # table = table.drop(columns=['g_radius'])
+            # table = table.rename(columns={'layer': 'x_values', 'LR testing': 'y_values'})
+            # table.to_csv('seaborn_demo.csv')
+            # g = sns.lineplot(ax=ax, x=layer_label, y=stage, data=clust_acc_table_stage, estimator=est_acc,
+            #                  ci=ci_acc, style='training', style_order=['after', 'before'], hue='g_radius')
         else:
-            g = sns.lineplot(ax=ax, x=layer_label, y=stage, data=clust_acc_table_stage, estimator=None,
-                             units='seed', style='training', style_order=['after', 'before'], hue='g_radius')
-        # if g.legend_ is not None:
-        #     g.legend_.remove()
+            table = clust_acc_table_stage.copy()
+            table = table[table['training'] == 'after']
+            g = sns.lineplot(ax=ax, x=layer_label, y=stage, data=table, estimator=None,
+                             units='seed', hue='g_radius', **plot_kwargs)
+        if g.legend_ is not None:
+            g.legend_.remove()
         ax.set_ylim([-.01, 1.01])
         ax.set_xticks(range(len(layers)))
         out_fig(fig, figname + '_' + stage, train_params, subfolder=train_params['network'] +
@@ -618,8 +631,8 @@ def dim_over_layers(seeds, gs, train_params, figname="dim_over_layers", T=0):
         g = sns.lineplot(ax=ax, x=layer_label, y=stat_key, data=dim_table, estimator=None,
                          style='training', style_order=['after', 'before'], hue='g_radius',
                          units='seed')
-    # if g.legend_ is not None:
-    #     g.legend_.remove()
+    if g.legend_ is not None:
+        g.legend_.remove()
     ax.set_xticks(range(len(layers)))
     out_fig(fig, figname, train_params_loc, subfolder=train_params_loc['network'] + '/dim_over_layer/',
             show=False, save=True, axis_type=0, data=dim_table)
