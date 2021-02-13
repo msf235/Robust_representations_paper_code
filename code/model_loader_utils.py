@@ -68,8 +68,10 @@ def get_epochs_and_saves(out_dir):
 
     Returns
     -------
-    list
-
+    list:
+        list of epochs
+    list[list]:
+        list of saves for each epoch
     """
     out_dir = Path(out_dir)
     ps = Path(out_dir).glob('epoch_*_save_*.pt')
