@@ -103,7 +103,7 @@ def extend_input(X, T, T_before=None):
 
     return Xn
 
-def get_pcs_covariance(X, pcs, original_shape=True, return_extra=False):
+def get_pcs_covariance(X, pcs, original_shape=True, return_projectors=False):
     """
         Return principal components of X (using the covariance matrix).
         Args:
@@ -119,8 +119,7 @@ def get_pcs_covariance(X, pcs, original_shape=True, return_extra=False):
     if X.ndim > 2:
         X = X.reshape(-1, X.shape[-1])
         print("Warning: concatenated first however many dimensions to get square data array")
-    mu = torch.mean(X, dim=0)
-    X = X - mu
+    X = X - torch.mean(X, dim=0)
     if X.shape[0] < X.shape[1]:
         X = X.T
     cov = X.T @ X / (N - 1)
@@ -131,12 +130,12 @@ def get_pcs_covariance(X, pcs, original_shape=True, return_extra=False):
     pca_proj = X @ ev[:, pcs]
     if original_shape:
         pca_proj = pca_proj.reshape(*X.shape[:-1], pca_proj.shape[-1])
-    if return_extra:
-        return {'pca_projection': pca_proj, 'pca_projectors': ev, 'mean': mu}
+    if return_projectors:
+        return pca_proj, ev
     else:
         return pca_proj
 
-def get_pcs(X, pcs, original_shape=True, return_extra=False):
+def get_pcs(X, pcs, original_shape=True):
     """
     Return principal components of X.
     Args:
@@ -153,17 +152,14 @@ def get_pcs(X, pcs, original_shape=True, return_extra=False):
     if X.ndim > 2:
         X = X.reshape(-1, X.shape[-1])
         print("Warning: concatenated first however many dimensions to get square data array")
-    mu = torch.mean(X, dim=0)
-    X_centered = X - mu
+    X_centered = X - torch.mean(X, dim=0)
     U, s, V = torch.svd(X_centered)
-    # U, Vt = svd_flip(U, V.T)
-    # V = Vt.T
+    U, Vt = svd_flip(U, V.T)
+    V = Vt.T
     # pca_proj = (s[pcs] * U[:, pcs]).T
     pca_proj = s[pcs] * U[:, pcs]
     if original_shape:
         pca_proj = pca_proj.reshape(*X_shape[:-1], pca_proj.shape[-1])
-    if return_extra:
-        return {'pca_projection': pca_proj, 'pca_projectors': V, 'mean': mu}
     return pca_proj
 
 def get_effdim(X, preserve_gradients=True):
@@ -521,7 +517,7 @@ def test_dataset_dim():
     transform_test = torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-        ])
+    ])
 
     testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
     X = torch.stack([x[0].flatten() for x in testset])

@@ -62,33 +62,33 @@ lyap_epochs_edge_of_chaos = [0, 1, 5, 10, 150]
 lyap_epochs_strongly_chaotic = [0, 1, 5, 10, 150]
 # %% Calls to plotting functions
 
-# # %% Figure 1b (top)
-g = high_d_input_edge_of_chaos_params['g_radius']
-plots.lyaps([0], high_d_input_edge_of_chaos_params, lyap_epochs_edge_of_chaos,
-            figname="fig_1b_top_g_{}_lyaps".format(g))
+# # # %% Figure 1b (top)
+# g = high_d_input_edge_of_chaos_params['g_radius']
+# plots.lyaps([0], high_d_input_edge_of_chaos_params, lyap_epochs_edge_of_chaos,
+#             figname="fig_1b_top_g_{}_lyaps".format(g))
+# #
+# # # %% Figure 1b (bottom)
+# g = high_d_input_strongly_chaotic_params['g_radius']
+# plots.lyaps([0], high_d_input_strongly_chaotic_params, lyap_epochs_strongly_chaotic,
+#             figname="fig_1b_bottom_g_{}_lyaps".format(g))
+# #
+# # # %% Figure 1c (top)
+# g = high_d_input_edge_of_chaos_params['g_radius']
+# plots.snapshots_through_time(high_d_input_edge_of_chaos_params, subdir_name='fig_1c_top_snaps_g_{}'.format(g))
+# #
+# # # %% Figure 1c (bottom)
+# g = high_d_input_strongly_chaotic_params['g_radius']
+# plots.snapshots_through_time(high_d_input_strongly_chaotic_params, subdir_name='fig_1c_bottom_snaps_g_{}'.format(g))
 #
-# # %% Figure 1b (bottom)
-g = high_d_input_strongly_chaotic_params['g_radius']
-plots.lyaps([0], high_d_input_strongly_chaotic_params, lyap_epochs_strongly_chaotic,
-            figname="fig_1b_bottom_g_{}_lyaps".format(g))
-#
-# # %% Figure 1c (top)
-g = high_d_input_edge_of_chaos_params['g_radius']
-plots.snapshots_through_time(high_d_input_edge_of_chaos_params, subdir_name='fig_1c_top_snaps_g_{}'.format(g))
-#
-# # %% Figure 1c (bottom)
-g = high_d_input_strongly_chaotic_params['g_radius']
-plots.snapshots_through_time(high_d_input_strongly_chaotic_params, subdir_name='fig_1c_bottom_snaps_g_{}'.format(g))
-
-# %% Figure 1d
-hue_dictionary = {'g_radius': [20, 250]}
-acc_and_loss_params = high_d_input_edge_of_chaos_params.copy()
-acc_and_loss_params['num_epochs'] = 10
-acc_and_loss_params['num_train_samples_per_epoch'] = 400
-epochs = list(range(acc_and_loss_params['num_epochs']+1))
-figname = 'fig_1d_acc_and_loss_over_training'
-plots.acc_and_loss_over_training(acc_and_loss_params, seeds, epochs=epochs, hue_dictionary=hue_dictionary,
-                                 figname=figname)
+# # %% Figure 1d
+# hue_dictionary = {'g_radius': [20, 250]}
+# acc_and_loss_params = high_d_input_edge_of_chaos_params.copy()
+# acc_and_loss_params['num_epochs'] = 10
+# acc_and_loss_params['num_train_samples_per_epoch'] = 400
+# epochs = list(range(acc_and_loss_params['num_epochs']+1))
+# figname = 'fig_1d_acc_and_loss_over_training'
+# plots.acc_and_loss_over_training(acc_and_loss_params, seeds, epochs=epochs, hue_dictionary=hue_dictionary,
+#                                  figname=figname)
 
 # %% Figure 1e
 plots.dim_over_layers(seeds, [20, 250], high_d_input_edge_of_chaos_params,

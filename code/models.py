@@ -5,14 +5,11 @@ from torch import nn
 
 class FeedForward(nn.Module):
     """
-    Class for feedforward neural network model. Takes a list of pytorch
-    tensors holding the weight initializations and
+    Class for feedforward neural network model. Takes a list of pytorch tensors holding the weight initializations and
     ties these together into a trainable neural network.
     """
 
-    def __init__(self, layer_weights: List[Tensor], biases: List[Tensor],
-                 nonlinearities: List[Callable],
-                 layer_train=None, bias_train=None):
+    def __init__(self, layer_weights: List[Tensor], biases: List[Tensor], nonlinearities: List[Callable]):
         """
 
         Parameters
@@ -23,29 +20,15 @@ class FeedForward(nn.Module):
             List of the bias initializations.
         nonlinearities : List[Callable]
             List of the nonlinearities used in the layers.
-        layer_train : List[bool]
-            layer_train[k] specifies if layer k is trained or fixed
-        bias_train : List[bool]
-            layer_train[k] specifies if layer k is trained or fixed
         """
         super().__init__()
-        if layer_train is None:
-            layer_train = [True]*len(layer_weights)
-        if bias_train is None:
-            bias_train = [True]*len(biases)
-        self.layer_weights = nn.ParameterList(
-            [nn.Parameter(layer, requires_grad=train) for layer, train in
-             zip(layer_weights, layer_train)])
-        self.biases = nn.ParameterList(
-            [nn.Parameter(bias, requires_grad=train) for bias, train in
-             zip(biases,
-                 bias_train)])
+        self.layer_weights = nn.ParameterList([nn.Parameter(layer, requires_grad=True) for layer in layer_weights])
+        self.biases = nn.ParameterList([nn.Parameter(bias, requires_grad=True) for bias in biases])
         self.nonlinearities = nonlinearities
 
     def forward(self, inputs: Tensor):
         hid = inputs
-        for layer, nonlinearity, bias in zip(self.layer_weights,
-                                             self.nonlinearities, self.biases):
+        for layer, nonlinearity, bias in zip(self.layer_weights, self.nonlinearities, self.biases):
             hid = nonlinearity(hid@layer + bias)
         return hid
 
@@ -59,9 +42,7 @@ class FeedForward(nn.Module):
         with torch.set_grad_enabled(not detach):
             hid = inputs
             pre_activations = []
-            for layer, nonlinearity, bias in zip(self.layer_weights,
-                                                 self.nonlinearities,
-                                                 self.biases):
+            for layer, nonlinearity, bias in zip(self.layer_weights, self.nonlinearities, self.biases):
                 pre_activation = hid@layer + bias
                 hid = nonlinearity(pre_activation)
                 pre_activations.append(detacher(pre_activation))
@@ -77,9 +58,7 @@ class FeedForward(nn.Module):
         with torch.set_grad_enabled(not detach):
             hid = inputs
             post_activations = []
-            for layer, nonlinearity, bias in zip(self.layer_weights,
-                                                 self.nonlinearities,
-                                                 self.biases):
+            for layer, nonlinearity, bias in zip(self.layer_weights, self.nonlinearities, self.biases):
                 hid = nonlinearity(hid@layer + bias)
                 post_activations.append(detacher(hid))
             return post_activations
@@ -94,9 +73,7 @@ class FeedForward(nn.Module):
         with torch.set_grad_enabled(not detach):
             hid = inputs
             activations = []
-            for layer, nonlinearity, bias in zip(self.layer_weights,
-                                                 self.nonlinearities,
-                                                 self.biases):
+            for layer, nonlinearity, bias in zip(self.layer_weights, self.nonlinearities, self.biases):
                 pre_activation = hid@layer + bias
                 hid = nonlinearity(pre_activation)
                 activations.append(detacher(pre_activation))
@@ -106,25 +83,17 @@ class FeedForward(nn.Module):
 # noinspection PyArgumentList
 class RNN(nn.Module):
     """
-    Recurrent Neural Network (RNN). This is a "vanilla" implementation with
-    the typical machine-learning style
+    Recurrent Neural Network (RNN). This is a "vanilla" implementation with the typical machine-learning style
     equations:
 
-        h_{t+1} = nonlinearity(h_{t} @ recurrent_weights + recurrent_bias)
-        --  hidden unit update
+        h_{t+1} = nonlinearity(h_{t} @ recurrent_weights + recurrent_bias)    --  hidden unit update
     """
 
-    def __init__(self, input_weights: Tensor, recurrent_weights: Tensor,
-                 output_weights: Tensor,
-                 recurrent_bias: Tensor, output_bias: Tensor,
-                 nonlinearity: Optional[Union[str, Callable]],
-                 hidden_unit_init: Optional[Union[str, Callable]] = None,
-                 train_input: bool = False,
-                 train_recurrent: bool = True, train_output: bool = True,
-                 train_recurrent_bias: bool = True,
-                 train_output_bias: bool = True,
-                 output_over_recurrent_time: bool = False,
-                 dropout_p=0, unit_injected_noise=0):
+    def __init__(self, input_weights: Tensor, recurrent_weights: Tensor, output_weights: Tensor,
+                 recurrent_bias: Tensor, output_bias: Tensor, nonlinearity: Optional[Union[str, Callable]],
+                 hidden_unit_init: Optional[Union[str, Callable]] = None, train_input: bool = False,
+                 train_recurrent: bool = True, train_output: bool = True, train_recurrent_bias: bool = True,
+                 train_output_bias: bool = True, output_over_recurrent_time: bool = False):
         """
         Parameters
         ----------
@@ -141,38 +110,23 @@ class RNN(nn.Module):
         nonlinearity : Optional[Union[str, Callable]]
             The nonlinearity to use for the hidden unit activation function.
         hidden_unit_init : Optional[Union[str, Callable]]
-            Initial value for the hidden units. The network is set to this
-            value at the beginning of every input
-            batch. Todo: make it so the hidden state can carry over input
-            batches.
+            Initial value for the hidden units. The network is set to this value at the beginning of every input
+            batch. Todo: make it so the hidden state can carry over input batches.
         train_input : bool
-            True: train the input weights, i.e. set requires_grad = True for
-            the input weights. False: keep the input
+            True: train the input weights, i.e. set requires_grad = True for the input weights. False: keep the input
             weights fixed to their initial value over training.
         train_recurrent : bool
-            True: train the recurrent weights. False: keep the recurrent
-            weights fixed to their initial value over training.
+            True: train the recurrent weights. False: keep the recurrent weights fixed to their initial value over training.
         train_output : bool
-            True: train the output weights. False: keep the output weights
-            fixed to their initial value over
+            True: train the output weights. False: keep the output weights fixed to their initial value over
             training.
         train_recurrent_bias : bool
-            True: train the recurrent bias. False: keep the recurrent bias
-            fixed to its initial value over training.
+            True: train the recurrent bias. False: keep the recurrent bias fixed to its initial value over training.
         train_output_bias : bool
-            True: train the output bias. False: keep the output bias fixed to
-            its initial value over training.
+            True: train the output bias. False: keep the output bias fixed to its initial value over training.
         output_over_recurrent_time : bool
-            True: Return network output over the recurrent timesteps. False:
-            Only return the network output at the
+            True: Return network output over the recurrent timesteps. False: Only return the network output at the
             last timestep.
-        dropout_p : float
-            Probability value for dropout applied to the hidden units of the
-            feedforward network or recurrent units at each recurrent timestep.
-            Default: 0. If 0, a dropout layer isn't added.
-        unit_injected_noise : float
-            Magnitude of i.i.d Gaussian noise to inject in each unit of each
-            hidden layer or on each recurrent timestep. Default: 0.
         """
 
         super().__init__()
@@ -204,23 +158,19 @@ class RNN(nn.Module):
             self.Win = nn.Parameter(input_weights.clone(), requires_grad=False)
 
         if train_recurrent:
-            self.Wrec = nn.Parameter(recurrent_weights.clone(),
-                                     requires_grad=True)
+            self.Wrec = nn.Parameter(recurrent_weights.clone(), requires_grad=True)
         else:
-            self.Wrec = nn.Parameter(recurrent_weights.clone(),
-                                     requires_grad=False)
+            self.Wrec = nn.Parameter(recurrent_weights.clone(), requires_grad=False)
 
         if train_output:
             self.Wout = nn.Parameter(output_weights.clone(), requires_grad=True)
         else:
-            self.Wout = nn.Parameter(output_weights.clone(),
-                                     requires_grad=False)
+            self.Wout = nn.Parameter(output_weights.clone(), requires_grad=False)
 
         if train_recurrent_bias:
             self.brec = nn.Parameter(recurrent_bias.clone(), requires_grad=True)
         else:
-            self.brec = nn.Parameter(recurrent_bias.clone(),
-                                     requires_grad=False)
+            self.brec = nn.Parameter(recurrent_bias.clone(), requires_grad=False)
 
         if train_output_bias:
             self.bout = nn.Parameter(output_bias.clone(), requires_grad=True)
@@ -233,53 +183,19 @@ class RNN(nn.Module):
 
         self.output_over_recurrent_time = output_over_recurrent_time
 
-        self.dropout_p = dropout_p
-        self.unit_injected_noise = unit_injected_noise
-        dropout = torch.nn.Dropout(dropout_p)
-        def gauss_noise_inject(x):
-            xi = unit_injected_noise * torch.randn(*x.shape)
-            return x + xi
-        if self.dropout_p > 0 and self.unit_injected_noise > 0:
-            def noise_inject(x, training=True):
-                if training:
-                    return dropout(gauss_noise_inject(x))
-                else:
-                    return x
-        elif self.dropout_p > 0:
-            def noise_inject(x, training=True):
-                if training:
-                    return dropout(x)
-                else:
-                    return dropout(x)
-        elif self.unit_injected_noise > 0:
-            def noise_inject(x, training=True):
-                if training:
-                    return gauss_noise_inject(x)
-                else:
-                    return x
-        else:
-            def noise_inject(x, training=True):
-                return x
-        self.noise_inject = noise_inject
-
     def forward(self, inputs: Tensor):
         hid = self.hidden_unit_init
         if self.output_over_recurrent_time:
-            out = torch.zeros(inputs.shape[0], inputs.shape[1],
-                              self.Wout_T.shape[-1])
+            out = torch.zeros(inputs.shape[0], inputs.shape[1], self.Wout_T.shape[-1])
             for i0 in range(inputs.shape[1]):
-                preactivation = (hid@self.Wrec_T +
-                                 inputs[:, i0]@self.Win_T + self.brec)
-                hid = self.noise_inject(self.nonlinearity(preactivation),
-                                        self.training)
+                preactivation = hid@self.Wrec_T + inputs[:, i0]@self.Win_T + self.brec
+                hid = self.nonlinearity(preactivation)
                 out[:, i0] = hid@self.Wout_T + self.bout
             return out
         else:
             for i0 in range(inputs.shape[1]):
-                preactivation = (hid@self.Wrec_T +
-                                 inputs[:, i0]@self.Win_T + self.brec)
-                hid = self.noise_inject(self.nonlinearity(preactivation),
-                                        self.training)
+                preactivation = hid@self.Wrec_T + inputs[:, i0]@self.Win_T + self.brec
+                hid = self.nonlinearity(preactivation)
             out = hid@self.Wout_T + self.bout
             return out
 
@@ -298,8 +214,7 @@ class RNN(nn.Module):
         hid = self.hidden_unit_init
         postactivations = []
         for i0 in range(inputs.shape[1]):
-            preactivation = hid@self.Wrec_T + inputs[:,
-                                              i0]@self.Win_T + self.brec
+            preactivation = hid@self.Wrec_T + inputs[:, i0]@self.Win_T + self.brec
             hid = self.nonlinearity(preactivation)
             postactivations.append(hid.detach())
         out = hid@self.Wout_T + self.bout
@@ -310,8 +225,7 @@ class RNN(nn.Module):
         hid = self.hidden_unit_init
         activations = []
         for i0 in range(inputs.shape[1]):
-            preactivation = hid@self.Wrec_T + inputs[:,
-                                              i0]@self.Win_T + self.brec
+            preactivation = hid@self.Wrec_T + inputs[:, i0]@self.Win_T + self.brec
             hid = self.nonlinearity(preactivation)
             activations.append(preactivation.detach())
             activations.append(hid.detach())
@@ -321,30 +235,22 @@ class RNN(nn.Module):
 
 class SompolinskyRNN(RNN):
     """
-    Recurrent Neural Network (RNN) with style dynamics as used in Sompolinsky
-    et al. 1988:
+    Recurrent Neural Network (RNN) with style dynamics as used in Sompolinsky et al. 1988:
 
     h' = -h + nonlinearity(h)@Wrec + input@Win + recurrent_bias.
 
     These are discretized via forward Euler method to get the update
 
-    h_{t+1} = h_{t} + dt(-h_{t} + nonlinearity(h_{t}) @ Wrec + input_{t}@Win
-    + recurrent_bias)
+    h_{t+1} = h_{t} + dt(-h_{t} + nonlinearity(h_{t}) @ Wrec + input_{t}@Win + recurrent_bias)
 
-    Here h is like a current input (membrane potential) and nonlinearity(h_{
-    t}) is like a "firing rate".
+    Here h is like a current input (membrane potential) and nonlinearity(h_{t}) is like a "firing rate".
     """
 
-    def __init__(self, input_weights: Tensor, recurrent_weights: Tensor,
-                 output_weights: Tensor,
-                 recurrent_bias: Tensor, output_bias: Tensor,
-                 nonlinearity: Optional[Union[str, Callable]],
-                 hidden_unit_init: Optional[Union[str, Tensor]] = None,
-                 train_input: bool = False,
-                 train_recurrent: bool = True, train_output: bool = True,
-                 train_recurrent_bias: bool = True,
-                 train_output_bias: bool = True, dt: float = .01,
-                 output_over_recurrent_time: bool = False):
+    def __init__(self, input_weights: Tensor, recurrent_weights: Tensor, output_weights: Tensor,
+                 recurrent_bias: Tensor, output_bias: Tensor, nonlinearity: Optional[Union[str, Callable]],
+                 hidden_unit_init: Optional[Union[str, Tensor]] = None, train_input: bool = False,
+                 train_recurrent: bool = True, train_output: bool = True, train_recurrent_bias: bool = True,
+                 train_output_bias: bool = True, dt: float = .01, output_over_recurrent_time: bool = False):
         """
         Parameters
         ----------
@@ -361,36 +267,26 @@ class SompolinskyRNN(RNN):
         nonlinearity : Optional[Union[str, Callable]]
             The nonlinearity to use for the hidden unit activation function.
         hidden_unit_init : Optional[Union[str, Callable]]
-            Initial value for the hidden units. The network is set to this
-            value at the beginning of every input
-            batch. Todo: make it so the hidden state can carry over input
-            batches.
+            Initial value for the hidden units. The network is set to this value at the beginning of every input
+            batch. Todo: make it so the hidden state can carry over input batches.
         train_input : bool
-            True: train the input weights, i.e. set requires_grad = True for
-            the input weights. False: keep the input
+            True: train the input weights, i.e. set requires_grad = True for the input weights. False: keep the input
             weights fixed to their initial value over training.
         train_recurrent : bool
-            True: train the recurrent weights. False: keep the recurrent
-            weights fixed to their initial value over training.
+            True: train the recurrent weights. False: keep the recurrent weights fixed to their initial value over training.
         train_output : bool
-            True: train the output weights. False: keep the output weights
-            fixed to their initial value over
+            True: train the output weights. False: keep the output weights fixed to their initial value over
             training.
         train_recurrent_bias : bool
-            True: train the recurrent bias. False: keep the recurrent bias
-            fixed to its initial value over training.
+            True: train the recurrent bias. False: keep the recurrent bias fixed to its initial value over training.
         train_output_bias : bool
-            True: train the output bias. False: keep the output bias fixed to
-            its initial value over training.
+            True: train the output bias. False: keep the output bias fixed to its initial value over training.
         output_over_recurrent_time : bool
-            True: Return network output over the recurrent timesteps. False:
-            Only return the network output at the
+            True: Return network output over the recurrent timesteps. False: Only return the network output at the
             last timestep.
         """
-        super().__init__(input_weights, recurrent_weights, output_weights,
-                         recurrent_bias, output_bias, nonlinearity,
-                         hidden_unit_init, train_input, train_recurrent,
-                         train_output, train_recurrent_bias,
+        super().__init__(input_weights, recurrent_weights, output_weights, recurrent_bias, output_bias, nonlinearity,
+                         hidden_unit_init, train_input, train_recurrent, train_output, train_recurrent_bias,
                          train_output_bias, output_over_recurrent_time)
         self.dt = dt
 
@@ -398,19 +294,14 @@ class SompolinskyRNN(RNN):
         hid = self.hidden_unit_init
         if self.output_over_recurrent_time:
             # out = [hid]
-            out = torch.zeros(inputs.shape[0], inputs.shape[1],
-                              self.Wout.shape[-1])
+            out = torch.zeros(inputs.shape[0], inputs.shape[1], self.Wout.shape[-1])
             for i0 in range(inputs.shape[1]):
-                hid = hid + self.dt*(
-                        self.nonlinearity(hid)@self.Wrec_T + inputs[:,
-                                                             i0]@self.Win_T + self.brec)
+                hid = hid + self.dt*(self.nonlinearity(hid)@self.Wrec_T + inputs[:, i0]@self.Win_T + self.brec)
                 out[:, i0] = hid@self.Wout_T + self.bout
             return out
         else:
             for i0 in range(inputs.shape[1]):
-                hid = hid + self.dt*(
-                        self.nonlinearity(hid)@self.Wrec_T + inputs[:,
-                                                             i0]@self.Win_T + self.brec)
+                hid = hid + self.dt*(self.nonlinearity(hid)@self.Wrec_T + inputs[:, i0]@self.Win_T + self.brec)
             out = hid@self.Wout_T + self.bout
             return out
 
@@ -425,9 +316,7 @@ class SompolinskyRNN(RNN):
             hid = self.hidden_unit_init
             currents = []
             for i0 in range(inputs.shape[1]):
-                hid = hid + self.dt*(
-                        self.nonlinearity(hid)@self.Wrec_T + inputs[:,
-                                                             i0]@self.Win_T + self.brec)
+                hid = hid + self.dt*(self.nonlinearity(hid)@self.Wrec_T + inputs[:, i0]@self.Win_T + self.brec)
                 currents.append(hid)
             return currents
 
@@ -442,20 +331,15 @@ class SompolinskyRNN(RNN):
             hid = self.hidden_unit_init
             firing_rates = []
             for i0 in range(inputs.shape[1]):
-                hid = hid + self.dt*(
-                        self.nonlinearity(hid)@self.Wrec_T + inputs[:,
-                                                             i0]@self.Win_T + self.brec)
+                hid = hid + self.dt*(self.nonlinearity(hid)@self.Wrec_T + inputs[:, i0]@self.Win_T + self.brec)
                 firing_rates.append(self.nonlinearity(hid))
             return firing_rates
 
     def get_activations(self, inputs: Tensor, detach: bool = True):
-        raise AttributeError(
-            "get_activations is not implemented for this model. Try get_currents or get_firing_rates.")
+        raise AttributeError("get_activations is not implemented for this model. Try get_currents or get_firing_rates.")
 
-    def get_pre_activations(self, inputs: Tensor,
-                            detach: bool = True):  # Alias for compatibility with other models
+    def get_pre_activations(self, inputs: Tensor, detach: bool = True): # Alias for compatibility with other models
         return self.get_currents(inputs, detach)
 
-    def get_post_activations(self, inputs: Tensor,
-                             detach: bool = True):  # Alias for compatibility with other models
+    def get_post_activations(self, inputs: Tensor, detach: bool = True): # Alias for compatibility with other models
         return self.get_firing_rates(inputs, detach)

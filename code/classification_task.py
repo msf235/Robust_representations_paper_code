@@ -4,7 +4,6 @@ from torch.utils.data import Dataset
 
 norm = np.linalg.norm
 
-
 def onehot(x):
     # if the array x is filled with integers then it makes each of this integer a class returning the onehot
     # representation in the last dimension of x
@@ -21,7 +20,6 @@ def onehot2(x, N):
     y = np.zeros((x.shape[0], x_unique.shape[0]))
     for x_el, idx in enumerate(x_unique): y[np.where(x == x_el), int(idx)] = 1
     return y
-
 
 class InpData(Dataset):
     """Simple class for drawing samples from a pair of arrays X and Y."""
@@ -44,7 +42,6 @@ class InpData(Dataset):
 
     def __getitem__(self, idx):
         return self.X[idx], self.Y[idx]
-
 
 class Gaussian_Spheres(Dataset):
     """ Class for drawing samples from isotropic gaussian distribution with multiple centers.
@@ -130,9 +127,9 @@ def draw_centers_hypercube(num_clusters, dim, min_sep):
             counter = counter + 1
         X.append(p)
     X = np.array(X)
-    # print("minimum cluster separation allowed: " + str(min_sep))
+    print("minimum cluster separation allowed: " + str(min_sep))
     from scipy.spatial.distance import pdist
-    # print("minimum cluster separation generated: " + str(np.min(pdist(X))))
+    print("minimum cluster separation generated: " + str(np.min(pdist(X))))
     return np.array(X)
 
 
@@ -185,14 +182,12 @@ def delayed_mixed_gaussian(num_train, num_test, X_dim, Y_classes, X_clusters, n_
 
     cluster_class_label = np.mod(np.arange(X_clusters), Y_classes).astype(int)
     nonzero_time_points = torch.arange(n_hold)
-    # if n_hold == 0:
-    #     squeeze = True
+
     torch.manual_seed(assignment_and_noise_seed)
     np.random.seed(assignment_and_noise_seed)
     if freeze_input:
         dataset = Gaussian_Spheres(centers, cluster_class_label, final_time_point, max_samples=num_train,
-                                   noise_sig=noise_sigma, nonzero_time_points=nonzero_time_points,
-                                   squeeze=final_time_point == 0)
+                                   noise_sig=noise_sigma, nonzero_time_points=nonzero_time_points)
         X, Y = dataset[:]
         class_datasets = {'train': InpData(X[:num_train], Y[:num_train]),
                           'val': InpData(X[num_train:], Y[num_train:])}
@@ -200,9 +195,9 @@ def delayed_mixed_gaussian(num_train, num_test, X_dim, Y_classes, X_clusters, n_
         class_datasets = {
             'train': Gaussian_Spheres(centers, cluster_class_label, final_time_point, max_samples=num_train,
                                       noise_sig=noise_sigma, nonzero_time_points=nonzero_time_points,
-                                      squeeze=final_time_point == 0),
+                                      squeeze=final_time_point==0),
             'val': Gaussian_Spheres(centers, cluster_class_label, final_time_point, max_samples=num_test,
                                     noise_sig=noise_sigma, nonzero_time_points=nonzero_time_points,
-                                    squeeze=final_time_point == 0)}
+                                    squeeze=final_time_point==0)}
 
     return class_datasets, centers, cluster_class_label
