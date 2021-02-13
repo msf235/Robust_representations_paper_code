@@ -24,7 +24,7 @@ import model_loader_utils as loader
 import initialize_and_train as train
 import utils
 
-memory = Memory(location='./memoization_cache_2', verbose=2)
+memory = Memory(location='./memoization_cache', verbose=2)
 # memory.clear()
 ## Functions for computing means and error bars for the plots. 68% confidence
 # intervals and means are currently
