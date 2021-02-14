@@ -42,8 +42,7 @@ USE_ERRORBARS = False
 LEGEND = False
 # LEGEND = True
 
-# folder_root = 'figs/Win_{}/'
-folder_root = '../results/figs/Win_{}/'
+folder_root = '../results/figs/'
 
 def ci_acc(vals):
     median, bounds = median_and_bound(vals, perc_bound=0.75, loc=1.,
@@ -886,7 +885,7 @@ def dim_over_layers(train_params_list_hue, train_params_list_style=None,
             integer=True))  # ax.xaxis.set_major_locator(plt.MaxNLocator(10))
 
     # ax.set_ylim([0, None])
-    ax.set_ylim([0, 15])
+    # ax.set_ylim([0, 15])
 
     out_fig(fig, figname, subfolder=subdir, show=False, save=True, axis_type=0,
             data=table)

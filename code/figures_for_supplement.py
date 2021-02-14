@@ -232,10 +232,9 @@ params_recurrent_2 = {
 keys_deep = list(params_recurrent_1.keys())
 keys_abbrev = ['lr', 'opt', 'loss', 'nonlin', 'l2', 'g']
 ps_list_recurrent = list(itertools.product(*params_recurrent_1.values())) + \
-                    list(itertools.product(*params_recurrent_2.values())) + \
-                    list(itertools.product(*params_deep_3.values()))
+                    list(itertools.product(*params_recurrent_2.values()))
 
-def run_recurrent_1(param_set, train_params, i0, multiprocess_lock=None):
+def run_recurrent(param_set, train_params, i0, multiprocess_lock=None):
     # time.sleep(i0)
     print(multiprocess_lock)
     train_params = train_params.copy()
@@ -308,16 +307,12 @@ params_readout_noise_deep_1 = params_recurrent_1.copy()
 params_readout_noise_deep_1['l2_regularization'] = [0]
 params_readout_noise_deep_2 = params_recurrent_2.copy()
 params_readout_noise_deep_2['l2_regularization'] = [0]
-params_readout_noise_deep_3 = params_deep_3.copy()
-params_readout_noise_deep_3['l2_regularization'] = [0]
 keys_readout_noise_deep = list(params_recurrent_1.keys())
 keys_readout_noise_deep_abbrev = ['lr', 'opt', 'loss', 'nonlin', 'l2', 'g']
 ps_list_readout_noise_recurrent = list(
     itertools.product(*params_readout_noise_deep_1.values())) + \
                                   list(itertools.product(
-                               *params_readout_noise_deep_2.values())) + \
-                                  list(itertools.product(
-                               *params_readout_noise_deep_3.values()))
+                               *params_readout_noise_deep_2.values()))
 # pvals_readout_noise_deep = ps_vals_deep
 
 def run_readout_noise_recurrent(param_set, train_params, i0, multiprocess_lock=None):
@@ -656,8 +651,8 @@ if __name__ == '__main__':
     lock = Lock()
 
     # Serial run
-    # [run_shallow_1(p, base_params, k) for k, p in enumerate(
-    # ps_list_shallow)]  #
+    [run_shallow_1(p, base_params, k) for k, p in enumerate(
+    ps_list_shallow)]  #
     # [run_readout_noise(p, base_params, k) for k, p in
     #  enumerate(pvals_readout_noise)]
     # [run_deep_1(p, base_params, k) for k, p in enumerate(ps_vals_deep)]
@@ -670,39 +665,39 @@ if __name__ == '__main__':
     # [run_rnn_freeze_output(p) for p in params_rnn_freeze_vals]
     # [run_rnn_noisy_units_output(p) for p in params_rnn_noisy_units_vals]
 
-    print("Setting up multiprocess.")
-    processes = []
-    processes += [Process( # Plots for Figure S5
-        target=run_rnn_freeze_output,
-        args=(p, lock)
-        ) for p in ps_list_rnn_freeze_vals]
-    processes += [Process( # Plots for Figures S6 and S7
-        target=run_shallow_1, args=(p, base_params, i0, lock)) for i0, p in
-        enumerate(ps_list_shallow)]
-    processes += [Process( # Plots for Figures S6 and S7
-        target=run_readout_noise, args=(p, base_params, i0, lock)
-        ) for i0, p in enumerate(ps_list_readout_noise)]
-    processes += [Process( # Plots for Figures S8-S11
-        target=run_recurrent_1, args=(p, base_params, i0, lock)) for i0, p in
-        enumerate(ps_list_recurrent)]
-    processes += [Process( # Plots for Figures S8-S11
-        target=run_readout_noise_recurrent, args=(p, base_params, i0, lock)
-        ) for i0, p in enumerate(ps_list_readout_noise_recurrent)]
-    processes += [Process( # Plots for Figure S13
-        target=run_rnn_high_d_input,
-        args=(p, lock)
-        ) for p in ps_list_rnn_high_d_vals]
-    processes += [Process( # Plots for Figures S14--S16, S17, and S22
-        target=run_lowd, args=(p, low_d_params, i0, lock)
-        ) for i0, p in enumerate(ps_list_lowd)]
-    processes += [Process( # Plots for Figure S18
-        target=run_lowd_chaos, args=(p, low_d_chaos_params, i0, lock)
-        ) for i0, p in enumerate(ps_list_lowd_chaos)]
-    processes += [Process( # Plots for Figure S18--S21
-        target=run_rnn_noisy_units,
-        args=(p, lock)
-        ) for p in ps_list_rnn_noisy_units_vals]
-    print("Starting", len(processes), "processes")
-    [process.start() for process in processes]
-    print("Joining processes.")
-    [process.join() for process in processes]
+    # print("Setting up multiprocess.")
+    # processes = []
+    # processes += [Process( # Plots for Figure S5
+    #     target=run_rnn_freeze_output,
+    #     args=(p, lock)
+    #     ) for p in ps_list_rnn_freeze_vals]
+    # processes += [Process( # Plots for Figures S6 and S7
+    #     target=run_shallow_1, args=(p, base_params, i0, lock)) for i0, p in
+    #     enumerate(ps_list_shallow)]
+    # processes += [Process( # Plots for Figures S6 and S7
+    #     target=run_readout_noise, args=(p, base_params, i0, lock)
+    #     ) for i0, p in enumerate(ps_list_readout_noise)]
+    # processes += [Process( # Plots for Figures S8-S11
+    #     target=run_recurrent, args=(p, base_params, i0, lock)) for i0, p in
+    #     enumerate(ps_list_recurrent)]
+    # processes += [Process( # Plots for Figures S8-S11
+    #     target=run_readout_noise_recurrent, args=(p, base_params, i0, lock)
+    #     ) for i0, p in enumerate(ps_list_readout_noise_recurrent)]
+    # processes += [Process( # Plots for Figure S13
+    #     target=run_rnn_high_d_input,
+    #     args=(p, lock)
+    #     ) for p in ps_list_rnn_high_d_vals]
+    # processes += [Process( # Plots for Figures S14--S16, S17, and S22
+    #     target=run_lowd, args=(p, low_d_params, i0, lock)
+    #     ) for i0, p in enumerate(ps_list_lowd)]
+    # processes += [Process( # Plots for Figure S18
+    #     target=run_lowd_chaos, args=(p, low_d_chaos_params, i0, lock)
+    #     ) for i0, p in enumerate(ps_list_lowd_chaos)]
+    # processes += [Process( # Plots for Figure S18--S21
+    #     target=run_rnn_noisy_units,
+    #     args=(p, lock)
+    #     ) for p in ps_list_rnn_noisy_units_vals]
+    # print("Starting", len(processes), "processes")
+    # [process.start() for process in processes]
+    # print("Joining processes.")
+    # [process.join() for process in processes]
