@@ -24,7 +24,10 @@ import model_loader_utils as loader
 import initialize_and_train as train
 import utils
 
+
 memory = Memory(location='./memoization_cache', verbose=2)
+
+
 # memory.clear()
 ## Functions for computing means and error bars for the plots. 68% confidence
 # intervals and means are currently
@@ -37,17 +40,20 @@ def orth_proj(v):
     vv = v.reshape(-1, 1)
     return torch.eye(n) - (vv@vv.T)/(v@v)
 
-# USE_ERRORBARS = True
-USE_ERRORBARS = False
+
+USE_ERRORBARS = True
+# USE_ERRORBARS = False
 LEGEND = False
 # LEGEND = True
 
 folder_root = '../results/figs/'
 
+
 def ci_acc(vals):
     median, bounds = median_and_bound(vals, perc_bound=0.75, loc=1.,
                                       shift=-.0001, reflect=True)
     return bounds[1], bounds[0]
+
 
 # ci_acc = 68
 # ci_acc = 95
@@ -57,11 +63,13 @@ def est_acc(vals):
                                       shift=-.0001, reflect=True)
     return median
 
+
 # est_acc = "mean"
 
 def ci_dim(vals):
     median, bounds = median_and_bound(vals, perc_bound=0.75, loc=.9999)
     return bounds[1], bounds[0]
+
 
 # ci_dim = 68
 # ci_dim = 95
@@ -71,11 +79,13 @@ def est_dim(vals):
     median, bounds = median_and_bound(vals, perc_bound=0.75, loc=.9999)
     return median
 
+
 # est_dim = "mean"
 
 def point_replace(a_string):
     a_string = str(a_string)
     return a_string.replace(".", "p")
+
 
 def get_color(x, cmap=plt.cm.plasma):
     """Get normalized color assignments based on input data x and colormap
@@ -83,6 +93,7 @@ def get_color(x, cmap=plt.cm.plasma):
     mag = torch.max(x) - torch.min(x)
     x_norm = (x.float() - torch.min(x))/mag
     return cmap(x_norm)
+
 
 def median_and_bound(samples, perc_bound, dist_type='gamma', loc=0., shift=0,
                      reflect=False):
@@ -118,6 +129,7 @@ def median_and_bound(samples, perc_bound, dist_type='gamma', loc=0., shift=0,
 
     return median, interval
 
+
 ## Set parameters for figure aesthetics
 plt.rcParams['font.size'] = 6
 plt.rcParams['font.size'] = 6
@@ -145,11 +157,13 @@ ext = 'pdf'
 figsize = (1.5, 1.2)
 ax_pos = (0, 0, 1, 1)
 
+
 def make_fig(figsize=figsize, ax_pos=ax_pos):
     """Create figure."""
     fig = plt.figure(figsize=figsize)
     ax = fig.add_axes(ax_pos)
     return fig, ax
+
 
 def out_fig(fig, figname, subfolder='', show=False, save=True, axis_type=0,
             name_order=0, data=None):
@@ -192,6 +206,7 @@ def out_fig(fig, figname, subfolder='', show=False, save=True, axis_type=0,
                   'wb') as fid:
             pkl.dump(data, fid, protocol=4)
     plt.close('all')
+
 
 def autocorrelation(train_params, figname='autocorrelation'):
     train_params_loc = train_params.copy()
@@ -237,7 +252,8 @@ def autocorrelation(train_params, figname='autocorrelation'):
     sns.lineplot(ax=ax, x='t_next', y='autocorr', data=auto_corr_table)
     out_fig(fig, figname)
 
-def snapshots_through_time(train_params, figname="snap", subdir_name="snaps"):
+
+def snapshots_through_time(train_params, figname="snap", subdir="snaps"):
     """
     Plot PCA snapshots of the representation through time.
 
@@ -418,11 +434,11 @@ def snapshots_through_time(train_params, figname="snap", subdir_name="snaps"):
 
         if dim == 3:
             out_fig(fig, f"{figname}_{i0 - 1}",
-                    subfolder=SUBFOLDER + subdir_name + '/', axis_type=0,
+                    subfolder=SUBFOLDER + subdir + '/', axis_type=0,
                     name_order=1)
         else:
             out_fig(fig, f"{figname}_{i0 - 1}",
-                    subfolder=SUBFOLDER + subdir_name + '/', axis_type=0,
+                    subfolder=SUBFOLDER + subdir + '/', axis_type=0,
                     name_order=1)
         return scats,
 
@@ -457,6 +473,7 @@ def snapshots_through_time(train_params, figname="snap", subdir_name="snaps"):
 
     print
 
+
 def _cluster_holdout_test_acc_stat_fun(h, y, clust_identity,
                                        classifier_type='logistic_regression',
                                        num_repeats=5, train_ratio=0.8, seed=11):
@@ -489,6 +506,7 @@ def _cluster_holdout_test_acc_stat_fun(h, y, clust_identity,
         test_accs[i0] = classifier.score(hid_test, y_test)
 
     return train_accs, test_accs
+
 
 def clust_holdout_over_layers(seeds, gs, train_params,
                               figname="clust_holdout_over_layers"):
@@ -615,6 +633,7 @@ def clust_holdout_over_layers(seeds, gs, train_params,
 
     plt.close('all')
 
+
 def get_stats(stat_fun, train_params_list_hue, train_params_list_style=None,
               seeds=None, hue_key=None, style_key=None, *args, **kwargs):
     train_params_list_hue = [copy.deepcopy(t) for t in train_params_list_hue]
@@ -659,6 +678,7 @@ def get_stats(stat_fun, train_params_list_hue, train_params_list_style=None,
         table[style_key] = table[style_key].astype('category')
 
     return table
+
 
 def dim_through_training(train_params_list_hue, train_params_list_style=None,
                          seeds=None, hue_key=None, style_key=None, figname='',
@@ -752,6 +772,7 @@ def dim_through_training(train_params_list_hue, train_params_list_style=None,
     out_fig(fig, figname, subfolder=subdir, show=False, save=True, axis_type=0,
             data=table)
     plt.close('all')
+
 
 def dim_over_layers(train_params_list_hue, train_params_list_style=None,
                     seeds=None, hue_key=None, style_key=None,
@@ -891,6 +912,7 @@ def dim_over_layers(train_params_list_hue, train_params_list_style=None,
             data=table)
 
     plt.close('all')
+
 
 def orth_compression_through_layers(train_params_list_hue,
                                     train_params_list_style=None, seeds=None,
@@ -1064,6 +1086,7 @@ def orth_compression_through_layers(train_params_list_hue,
 
     plt.close('all')
 
+
 def orth_compression_through_training(train_params_list_hue,
                                       train_params_list_style=None, seeds=None,
                                       hue_key=None, style_key=None,
@@ -1228,6 +1251,7 @@ def orth_compression_through_training(train_params_list_hue,
 
     plt.close('all')
 
+
 def orth_compression_through_training_input_sep(train_params_list_hue,
                                                 train_params_list_style=None,
                                                 seeds=None, hue_key=None,
@@ -1387,6 +1411,7 @@ def orth_compression_through_training_input_sep(train_params_list_hue,
             data=table)
 
     plt.close('all')
+
 
 def clust_holdout_over_layers(train_params_list_hue,
                               train_params_list_style=None,
@@ -1552,6 +1577,8 @@ def clust_holdout_over_layers(train_params_list_hue,
                 data=table)
     #
     # plt.close('all')
+
+
 def acc_over_training(train_params_list_hue, train_params_list_style=None,
                       seeds=None, hue_key=None, style_key=None,
                       figname="acc_over_training", subdir=None,
@@ -1672,6 +1699,7 @@ def acc_over_training(train_params_list_hue, train_params_list_style=None,
 
     plt.close('all')
 
+
 def loss_over_training(train_params_list_hue, train_params_list_style=None,
                        seeds=None, hue_key=None, style_key=None,
                        figname="loss_over_training", subdir=None,
@@ -1783,7 +1811,8 @@ def loss_over_training(train_params_list_hue, train_params_list_style=None,
 
     plt.close('all')
 
-def lyaps(seeds, train_params, epochs, figname="lyaps"):
+
+def lyaps(seeds, train_params, epochs, figname="lyaps", subdir="lyaps"):
     """
     Lyapunov exponent plots.
 
@@ -1851,8 +1880,9 @@ def lyaps(seeds, train_params, epochs, figname="lyaps"):
                       style='training', hue='epoch', ci=68, scale=0.5)
     ax.set_xticks(sorted(list(set(lyap_table['lyap_num']))))
     ax.axhline(y=0, color='black', linestyle='--')
-    out_fig(fig, figname, subfolder=train_params_loc['network'] + '/lyaps/',
-            show=False, save=True, axis_type=0, data=lyap_table)  #
+    out_fig(fig, figname, subdir, show=False, save=True, axis_type=0,
+            data=lyap_table)  #
+
 
 def ashok_compression_metric(train_params_list_hue,
                              train_params_list_style=None, seeds=None,
@@ -1964,6 +1994,7 @@ def ashok_compression_metric(train_params_list_hue,
             data=table)
 
     plt.close('all')
+
 
 def weight_var_through_training(train_params_list_hue,
                                 train_params_list_style=None, seeds=None,
@@ -2089,6 +2120,7 @@ def weight_var_through_training(train_params_list_hue,
             data=table)
 
     plt.close('all')
+
 
 if __name__ == '__main__':
     base_params = dict(N=200, num_epochs=5, num_train_samples_per_epoch=800,

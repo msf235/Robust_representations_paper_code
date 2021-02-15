@@ -96,6 +96,7 @@ ps_list_shallow = list(itertools.product(*params_shallow_1.values())) \
 
 def run_shallow_1(param_set, train_params, i0, multiprocess_lock=None):
     # time.sleep(i0)
+    plots.USE_ERRORBARS = False
     print(multiprocess_lock)
     train_params = train_params.copy()
     for i0, key in enumerate(keys_shallow):
@@ -176,6 +177,7 @@ ps_list_readout_noise = list(itertools.product(*params_readout_noise_1.values())
 
 def run_readout_noise(param_set, train_params, i0, multiprocess_lock=None):
     # time.sleep(i0)
+    plots.USE_ERRORBARS = False
     print(multiprocess_lock)
     train_params = train_params.copy()
     for i0, key in enumerate(keys_readout_noise):
@@ -235,6 +237,7 @@ ps_list_recurrent = list(itertools.product(*params_recurrent_1.values())) + \
                     list(itertools.product(*params_recurrent_2.values()))
 
 def run_recurrent(param_set, train_params, i0, multiprocess_lock=None):
+    plots.USE_ERRORBARS = False
     # time.sleep(i0)
     print(multiprocess_lock)
     train_params = train_params.copy()
@@ -317,6 +320,7 @@ ps_list_readout_noise_recurrent = list(
 
 def run_readout_noise_recurrent(param_set, train_params, i0, multiprocess_lock=None):
     # time.sleep(i0)
+    plots.USE_ERRORBARS = False
     print(multiprocess_lock)
     train_params = train_params.copy()
     for i0, key in enumerate(keys_readout_noise_deep):
@@ -532,6 +536,7 @@ ps_list_rnn_high_d_vals = list(itertools.product(*params_rnn_high_d.values()))
 params_rnn_high_d_keys = params_rnn_high_d.keys()
 params_rnn_high_d_keys_abbrev = ['loss', 'opt', 'lr', 'n_lag', 'N']
 def run_rnn_high_d_input(param_set, multiprocess_lock=None):
+    plots.USE_ERRORBARS = False
     subdir_prefix2 = Path('vanilla_rnn')
     tps = high_d_input_edge_of_chaos_params.copy()
     for i0, key in enumerate(params_rnn_high_d_keys):
@@ -562,6 +567,7 @@ ps_list_rnn_freeze_vals = list(itertools.product(*params_rnn_freeze.values()))
 params_rnn_freeze_keys = params_rnn_freeze.keys()
 params_rnn_freeze_keys_abbrev = ['loss', 'opt', 'lr']
 def run_rnn_freeze_output(param_set, multiprocess_lock=None):
+    plots.USE_ERRORBARS = True
     subdir_prefix2 = Path('vanilla_rnn')
     tps = high_d_input_edge_of_chaos_params.copy()
     for i0, key in enumerate(params_rnn_freeze_keys):
@@ -601,6 +607,7 @@ ps_list_rnn_noisy_units_vals = list(itertools.product(*temp1.values())) \
 params_rnn_noisy_units_keys = temp1.keys()
 params_rnn_noisy_units_keys_abbrev = ['loss', 'opt', 'lr', 'dropout', 'noise']
 def run_rnn_noisy_units(param_set, multiprocess_lock=None):
+    plots.USE_ERRORBARS = False
     subdir_prefix2 = Path('vanilla_rnn')
     tps_high_d = high_d_input_edge_of_chaos_params.copy()
     for i0, key in enumerate(params_rnn_noisy_units_keys):
