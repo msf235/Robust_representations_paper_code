@@ -7,9 +7,9 @@ from pathlib import Path
 import seaborn as sns
 # from matplotlib import pyplot as plt
 
-plots.folder_root = "figs_revision"
-plots.LEGEND = True  # Set this to False to get remove legends for plots
-subdir_prefix = Path('')
+plots.folder_root = "../results/"
+plots.LEGEND = True  # Set this to False to remove legends for plots
+subdir_prefix = Path('figs_supplement')
 
 chaos_color_0 = np.array([0, 160, 160])/255
 chaos_color_1 = np.array([233, 38, 41])/255
@@ -658,8 +658,8 @@ if __name__ == '__main__':
     lock = Lock()
 
     # Serial run
-    [run_shallow_1(p, base_params, k) for k, p in enumerate(
-    ps_list_shallow)]  #
+    # [run_shallow_1(p, base_params, k) for k, p in enumerate(
+    # ps_list_shallow)]  #
     # [run_readout_noise(p, base_params, k) for k, p in
     #  enumerate(pvals_readout_noise)]
     # [run_deep_1(p, base_params, k) for k, p in enumerate(ps_vals_deep)]
@@ -672,39 +672,39 @@ if __name__ == '__main__':
     # [run_rnn_freeze_output(p) for p in params_rnn_freeze_vals]
     # [run_rnn_noisy_units_output(p) for p in params_rnn_noisy_units_vals]
 
-    # print("Setting up multiprocess.")
-    # processes = []
-    # processes += [Process( # Plots for Figure S5
-    #     target=run_rnn_freeze_output,
-    #     args=(p, lock)
-    #     ) for p in ps_list_rnn_freeze_vals]
-    # processes += [Process( # Plots for Figures S6 and S7
-    #     target=run_shallow_1, args=(p, base_params, i0, lock)) for i0, p in
-    #     enumerate(ps_list_shallow)]
-    # processes += [Process( # Plots for Figures S6 and S7
-    #     target=run_readout_noise, args=(p, base_params, i0, lock)
-    #     ) for i0, p in enumerate(ps_list_readout_noise)]
-    # processes += [Process( # Plots for Figures S8-S11
-    #     target=run_recurrent, args=(p, base_params, i0, lock)) for i0, p in
-    #     enumerate(ps_list_recurrent)]
-    # processes += [Process( # Plots for Figures S8-S11
-    #     target=run_readout_noise_recurrent, args=(p, base_params, i0, lock)
-    #     ) for i0, p in enumerate(ps_list_readout_noise_recurrent)]
-    # processes += [Process( # Plots for Figure S13
-    #     target=run_rnn_high_d_input,
-    #     args=(p, lock)
-    #     ) for p in ps_list_rnn_high_d_vals]
-    # processes += [Process( # Plots for Figures S14--S16, S17, and S22
-    #     target=run_lowd, args=(p, low_d_params, i0, lock)
-    #     ) for i0, p in enumerate(ps_list_lowd)]
-    # processes += [Process( # Plots for Figure S18
-    #     target=run_lowd_chaos, args=(p, low_d_chaos_params, i0, lock)
-    #     ) for i0, p in enumerate(ps_list_lowd_chaos)]
-    # processes += [Process( # Plots for Figure S18--S21
-    #     target=run_rnn_noisy_units,
-    #     args=(p, lock)
-    #     ) for p in ps_list_rnn_noisy_units_vals]
-    # print("Starting", len(processes), "processes")
-    # [process.start() for process in processes]
-    # print("Joining processes.")
-    # [process.join() for process in processes]
+    print("Setting up multiprocess.")
+    processes = []
+    processes += [Process( # Plots for Figure S5
+        target=run_rnn_freeze_output,
+        args=(p, lock)
+        ) for p in ps_list_rnn_freeze_vals]
+    processes += [Process( # Plots for Figures S6 and S7
+        target=run_shallow_1, args=(p, base_params, i0, lock)) for i0, p in
+        enumerate(ps_list_shallow)]
+    processes += [Process( # Plots for Figures S6 and S7
+        target=run_readout_noise, args=(p, base_params, i0, lock)
+        ) for i0, p in enumerate(ps_list_readout_noise)]
+    processes += [Process( # Plots for Figures S8-S11
+        target=run_recurrent, args=(p, base_params, i0, lock)) for i0, p in
+        enumerate(ps_list_recurrent)]
+    processes += [Process( # Plots for Figures S8-S11
+        target=run_readout_noise_recurrent, args=(p, base_params, i0, lock)
+        ) for i0, p in enumerate(ps_list_readout_noise_recurrent)]
+    processes += [Process( # Plots for Figure S13
+        target=run_rnn_high_d_input,
+        args=(p, lock)
+        ) for p in ps_list_rnn_high_d_vals]
+    processes += [Process( # Plots for Figures S14--S16, S17, and S22
+        target=run_lowd, args=(p, low_d_params, i0, lock)
+        ) for i0, p in enumerate(ps_list_lowd)]
+    processes += [Process( # Plots for Figure S18
+        target=run_lowd_chaos, args=(p, low_d_chaos_params, i0, lock)
+        ) for i0, p in enumerate(ps_list_lowd_chaos)]
+    processes += [Process( # Plots for Figure S18--S21
+        target=run_rnn_noisy_units,
+        args=(p, lock)
+        ) for p in ps_list_rnn_noisy_units_vals]
+    print("Starting", len(processes), "processes")
+    [process.start() for process in processes]
+    print("Joining processes.")
+    [process.join() for process in processes]

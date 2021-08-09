@@ -264,9 +264,9 @@ def snapshots_through_time(train_params, figname="snap", subdir="snaps"):
         to use for training.
 
     """
+    subdir = Path(subdir)
     X_dim = train_params['X_dim']
     FEEDFORWARD = train_params['network'] == 'feedforward'
-    SUBFOLDER = train_params['network'] + '/'
 
     num_pnts_dim_red = 800
     num_plot = 600
@@ -332,7 +332,7 @@ def snapshots_through_time(train_params, figname="snap", subdir="snaps"):
     p_track = 0
     norm = np.linalg.norm
     projs = []
-    for i1 in range(len(hid)):
+    for i1 in range(1, len(hid)):
         # pc = utils.get_pcs_covariance(hid[i1], [0, 1])
         out = utils.get_pcs_covariance(hid[i1], [0, 1], return_extra=True)
         pc = out['pca_projection']
@@ -433,12 +433,12 @@ def snapshots_through_time(train_params, figname="snap", subdir="snaps"):
         ax.set_ylim([-4, 4])
 
         if dim == 3:
-            out_fig(fig, f"{figname}_{i0 - 1}",
-                    subfolder=SUBFOLDER + subdir + '/', axis_type=0,
+            out_fig(fig, f"{figname}_{i0}",
+                    subfolder=subdir, axis_type=0,
                     name_order=1)
         else:
-            out_fig(fig, f"{figname}_{i0 - 1}",
-                    subfolder=SUBFOLDER + subdir + '/', axis_type=0,
+            out_fig(fig, f"{figname}_{i0}",
+                    subfolder=subdir, axis_type=0,
                     name_order=1)
         return scats,
 

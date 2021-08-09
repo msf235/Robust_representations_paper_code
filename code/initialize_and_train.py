@@ -13,7 +13,7 @@ import model_trainer
 from multiprocessing.synchronize import Lock
 import os
 
-DEFAULT_TABLE_PATH = 'output/output_table.csv'
+DEFAULT_TABLE_PATH = '../data/output/output_table.csv'
 
 def get_max_eigval(A):
     ew, __ = torch.eig(A)

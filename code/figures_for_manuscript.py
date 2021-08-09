@@ -113,16 +113,16 @@ plots.lyaps([0], high_d_input_strongly_chaotic_params,
             lyap_epochs_strongly_chaotic,
             figname="fig_2b_bottom_g_{}_lyaps".format(g),
             subdir="fig2")
-#
-# # %% Figure 2c (top)
+
+# %% Figure 2c (top)
 g = high_d_input_edge_of_chaos_params['g_radius']
 plots.snapshots_through_time(high_d_input_edge_of_chaos_params,
-                             subdir='fig_2c_top_snaps_g_{}'.format(g))
+                             subdir='fig2/fig_2c_top_snaps_g_{}'.format(g))
 #
 # # %% Figure 2c (bottom)
 g = high_d_input_strongly_chaotic_params['g_radius']
 plots.snapshots_through_time(high_d_input_strongly_chaotic_params,
-                             subdir='fig_2c_bottom_snaps_g_{}'.format(g))
+                             subdir='fig2/fig_2c_bottom_snaps_g_{}'.format(g))
 
 # %% Figure 2d
 hue_dictionary = {'g_radius': [20, 250]}
@@ -169,12 +169,12 @@ plots.lyaps([0], low_d_input_strongly_chaotic_params,
 # %% Figure 3c (top)
 g = low_d_input_edge_of_chaos_params['g_radius']
 plots.snapshots_through_time(low_d_input_edge_of_chaos_params,
-                             subdir='fig_3c_top_snaps_g_{}'.format(g))
+                             subdir='fig3/fig_3c_top_snaps_g_{}'.format(g))
 
 # %% Figure 3c (bottom)
 g = low_d_input_strongly_chaotic_params['g_radius']
 plots.snapshots_through_time(low_d_input_strongly_chaotic_params,
-                             subdir='fig_3c_bottom_snaps_g_{}'.format(g))
+                             subdir='fig3/fig_3c_bottom_snaps_g_{}'.format(g))
 
 # %% Figure 2d
 acc_params = low_d_input_edge_of_chaos_params.copy()
@@ -224,12 +224,12 @@ plots.lyaps([0], low_d_2n_input_strongly_chaotic_params,
 # %% Figure 4c (top)
 g = low_d_2n_input_edge_of_chaos_params['g_radius']
 plots.snapshots_through_time(low_d_2n_input_edge_of_chaos_params,
-                             subdir='fig_4c_top_snaps_g_{}'.format(g))
+                             subdir='fig4/fig_4c_top_snaps_g_{}'.format(g))
 
 # %% Figure 4c (bottom)
 g = low_d_2n_input_strongly_chaotic_params['g_radius']
 plots.snapshots_through_time(low_d_2n_input_strongly_chaotic_params,
-                             subdir='fig_4c_bottom_snaps_g_{}'.format(g))
+                             subdir='fig4/fig_4c_bottom_snaps_g_{}'.format(g))
 
 # %% Figure 4d
 acc_params = low_d_2n_input_edge_of_chaos_params.copy()
@@ -256,7 +256,7 @@ plots.clust_holdout_over_layers(chaos_params, chaos_params_epoch_0, seeds=seeds,
                                 style_order=[fig4e_params['num_epochs'], 0],
                                 palette=chaos_palette)
 
-# %% Figure 5
+# %% Figure 5a
 fig5a_params = high_d_input_edge_of_chaos_params.copy()
 fig5a_params['loss'] = 'mse'
 # A higher learning rate is needed to get the strongly chaotic network's
@@ -268,4 +268,18 @@ chaos_params, chaos_params_epoch_0 = split_params_chaos_and_training(
 plots.dim_over_layers(chaos_params, chaos_params_epoch_0, seeds=seeds,
                       hue_key='g_radius', style_key='num_epochs',
                       figname="fig_5a", subdir='fig5', style_order=[100, 0],
+                      palette=chaos_palette)
+
+# %% Figure 5b
+fig5b_params = low_d_input_edge_of_chaos_params.copy()
+fig5b_params['loss'] = 'mse'
+# A higher learning rate is needed to get the strongly chaotic network's
+# dimensionality to decrease.
+fig5b_params['learning_rate'] = 5e-3
+fig5b_params['num_epochs'] = 100
+chaos_params, chaos_params_epoch_0 = split_params_chaos_and_training(
+    fig5b_params)
+plots.dim_over_layers(chaos_params, chaos_params_epoch_0, seeds=seeds,
+                      hue_key='g_radius', style_key='num_epochs',
+                      figname="fig_5b", subdir='fig5', style_order=[100, 0],
                       palette=chaos_palette)
